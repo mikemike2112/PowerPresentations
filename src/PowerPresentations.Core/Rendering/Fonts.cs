@@ -142,7 +142,38 @@ public sealed class FontFace
         var win = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Fonts");
         Read(Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"), win);
         Read(Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"), win);
+        AddCloudFonts(r);
         return _reg = r;
+    }
+
+    // font cloud di Windows (es. Aptos): file con nome a hash in FontCache\CloudFonts\<famiglia>; il nome completo si legge dalla tabella 'name'
+    static void AddCloudFonts(Dictionary<string, string> r)
+    {
+        var root = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "FontCache", "4", "CloudFonts");
+        if (!Directory.Exists(root)) return;
+        foreach (var f in Directory.EnumerateFiles(root, "*.ttf", SearchOption.AllDirectories))
+        {
+            try
+            {
+                // legge solo directory e tabella 'name' (i file possono pesare parecchio)
+                using var fs = File.OpenRead(f);
+                var hdr = new byte[12 + 16 * 40]; int got = fs.Read(hdr, 0, hdr.Length);
+                var t = Tables(hdr); var nameOff = t["name"];
+                int nt = BinaryPrimitives.ReadUInt16BigEndian(hdr.AsSpan(4)), nlen = 0;
+                for (int k = 0; k < nt; k++) if (System.Text.Encoding.ASCII.GetString(hdr, 12 + 16 * k, 4) == "name") nlen = (int)BinaryPrimitives.ReadUInt32BigEndian(hdr.AsSpan(12 + 16 * k + 12));
+                var d = new byte[nlen]; fs.Seek(nameOff, SeekOrigin.Begin); fs.ReadExactly(d, 0, nlen); int n = 0;
+                int cnt = BinaryPrimitives.ReadUInt16BigEndian(d.AsSpan(n + 2)), so = BinaryPrimitives.ReadUInt16BigEndian(d.AsSpan(n + 4));
+                for (int i = 0; i < cnt; i++)
+                {
+                    int o = n + 6 + 12 * i;
+                    if (BinaryPrimitives.ReadUInt16BigEndian(d.AsSpan(o + 6)) != 4) continue;
+                    int len = BinaryPrimitives.ReadUInt16BigEndian(d.AsSpan(o + 8)), off = BinaryPrimitives.ReadUInt16BigEndian(d.AsSpan(o + 10));
+                    var name = BinaryPrimitives.ReadUInt16BigEndian(d.AsSpan(o)) == 3 ? System.Text.Encoding.BigEndianUnicode.GetString(d, n + so + off, len) : System.Text.Encoding.ASCII.GetString(d, n + so + off, len);
+                    r.TryAdd(name, f); break;
+                }
+            }
+            catch (Exception e) when (e is IOException or KeyNotFoundException or ArgumentException or UnauthorizedAccessException) { /* font illeggibile: ignorato */ }
+        }
     }
 
     /// <summary>Trova il file del font; ripiega su Arial. Lo stile mancante viene ignorato (ponytail: niente grassetto sintetico).</summary>

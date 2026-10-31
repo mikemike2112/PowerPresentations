@@ -166,6 +166,24 @@ public sealed partial class PptxDocument
     {
         var sh = FindShape(Slide(slide), id) ?? throw new KeyNotFoundException($"Forma {id} non trovata.");
         FillText(sh, text); Dirty = true;
+        Refit(slide, id, sh);
+    }
+
+    /// <summary>Dopo una modifica del testo ricalcola il rimpicciolimento automatico (normAutofit) e lo memorizza come fa PowerPoint (fontScale, lnSpcReduction).</summary>
+    void Refit(int slide, int id, P.Shape sh)
+    {
+        var fits = new SlideRenderer(this).Render(slide, new RenderOptions { RecomputeAutofit = true }).Fits;
+        if (!fits.TryGetValue(id, out var f)) return;
+        var bp = sh.TextBody!.BodyProperties ??= new A.BodyProperties();
+        var na = bp.GetFirstChild<A.NormalAutoFit>();
+        if (na == null)
+        {
+            na = new A.NormalAutoFit();
+            var warp = bp.GetFirstChild<A.PresetTextWarp>();
+            if (warp != null) warp.InsertAfterSelf(na); else bp.InsertAt(na, 0);
+        }
+        na.FontScale = f.Scale < 1 ? (int)Math.Round(f.Scale * 100000) : null;
+        na.LineSpaceReduction = f.Reduction > 0 && f.Scale < 1 ? (int)Math.Round(f.Reduction * 100000) : null;
     }
 
     static void FillText(P.Shape sh, string text)

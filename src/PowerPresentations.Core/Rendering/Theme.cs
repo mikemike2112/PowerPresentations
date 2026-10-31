@@ -106,11 +106,19 @@ public sealed class ColorCtx
                 case "satMod": r = Hsl(r, (h, s, l) => (h, s * v, l)); break;
                 case "satOff": r = Hsl(r, (h, s, l) => (h, s + v, l)); break;
                 case "hueOff": r = Hsl(r, (h, s, l) => (h + ((double?)t.Attribute("val") ?? 0) / 60000.0, s, l)); break;
-                case "tint": r = r with { R = (byte)(255 - (255 - r.R) * v), G = (byte)(255 - (255 - r.G) * v), B = (byte)(255 - (255 - r.B) * v) }; break;
-                case "shade": r = r with { R = (byte)(r.R * v), G = (byte)(r.G * v), B = (byte)(r.B * v) }; break;
+                // tint e shade di Office lavorano in RGB lineare (verificato sul rendering di PowerPoint)
+                case "tint": r = r with { R = Lin(r.R, c => 1 - (1 - c) * v), G = Lin(r.G, c => 1 - (1 - c) * v), B = Lin(r.B, c => 1 - (1 - c) * v) }; break;
+                case "shade": r = r with { R = Lin(r.R, c => c * v), G = Lin(r.G, c => c * v), B = Lin(r.B, c => c * v) }; break;
             }
         }
         return r;
+    }
+
+    static byte Lin(byte c, Func<double, double> f)
+    {
+        double x = c / 255.0; x = x <= 0.04045 ? x / 12.92 : Math.Pow((x + 0.055) / 1.055, 2.4);
+        x = Math.Clamp(f(x), 0, 1); x = x <= 0.0031308 ? x * 12.92 : 1.055 * Math.Pow(x, 1 / 2.4) - 0.055;
+        return (byte)Math.Round(x * 255);
     }
 
     static Rgba Hsl(Rgba c, Func<double, double, double, (double h, double s, double l)> f)
