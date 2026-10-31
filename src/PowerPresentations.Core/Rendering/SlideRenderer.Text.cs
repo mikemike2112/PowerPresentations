@@ -58,15 +58,19 @@ public sealed partial class SlideRenderer
         if (fit?.Name.LocalName == "normAutofit")
         {
             var fs = (double?)fit.Attribute("fontScale"); var lr = (double?)fit.Attribute("lnSpcReduction");
-            if (fs != null && !st.Opt.RecomputeAutofit) { scale = fs.Value / 100000.0; red = (lr ?? 0) / 100000.0; laid = TextEngine.Layout(tb, src, w, scale, red, tc, wrap, ign); }
-            else if (laid.Height > h)
+            if (st.Opt.RecomputeAutofit)
             {
-                foreach (var (s, rr) in new[] { (1.0, 0.1), (1.0, 0.2), (0.9, 0.2), (0.8, 0.2), (0.7, 0.2), (0.6, 0.2), (0.5, 0.2), (0.4, 0.2), (0.3, 0.2) })
+                // passi analoghi a quelli di PowerPoint: 100%, 92,5% (-10% interlinea), poi -7,5% per volta (-20% interlinea)
+                var steps = new List<(double, double)> { (1, 0), (0.925, 0.1) }; for (double s = 0.85; s >= 0.25; s -= 0.075) steps.Add((s, 0.2));
+                foreach (var (s, rr) in steps)
                 {
                     scale = s; red = rr; laid = TextEngine.Layout(tb, src, w, s, rr, tc, wrap, ign);
                     if (laid.Height <= h) break;
                 }
+                st.Dl.Fits[id] = (scale, red);
             }
+            else if (fs != null) { scale = fs.Value / 100000.0; red = (lr ?? 0) / 100000.0; laid = TextEngine.Layout(tb, src, w, scale, red, tc, wrap, ign); }
+            // senza fontScale memorizzato PowerPoint non rimpicciolisce finché il testo non viene modificato: stessa regola
         }
         double oy = anchor switch { "ctr" => (h - laid.Height) / 2, "b" => h - laid.Height, _ => 0 };
         Emit(st, laid, box.X + l, box.Y + t + oy, rot, box, id);
@@ -130,7 +134,7 @@ public sealed partial class SlideRenderer
                 var tb = ci.Tc.Element(Ns.A + "txBody");
                 if (tb == null) continue;
                 var tcx = CloneTc(st, TextColor(st, style, Overlays(style, Flag("firstRow"), Flag("lastRow"), Flag("firstCol"), Flag("lastCol"), Flag("bandRow"), Flag("bandCol"), r, c, nr, nc)));
-                ci.Laid = TextEngine.Layout(tb, CellSources(st, style, Flag("firstRow"), Flag("lastRow"), Flag("firstCol"), Flag("lastCol"), Flag("bandRow"), Flag("bandCol"), r, c, nr, nc), Math.Max(1, ci.W - ci.M[0] - ci.M[1]), 1, 0, tcx);
+                ci.Laid = TextEngine.Layout(tb, CellSources(st, style, Flag("firstRow"), Flag("lastRow"), Flag("firstCol"), Flag("lastCol"), Flag("bandRow"), Flag("bandCol"), r, c, nr, nc), Math.Max(1, ci.W - ci.M[0] - ci.M[1]), 1, 0, tcx, true, 1);
                 if (ci.RowSpan == 1) rowH[r] = Math.Max(rowH[r], ci.Laid.Height + ci.M[2] + ci.M[3]);
             }
         double y = box.Y;

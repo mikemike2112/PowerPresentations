@@ -94,15 +94,49 @@ public static class SlideDrawing
         dc.Pop();
     }
 
+    static readonly Dictionary<string, GlyphTypeface?> Gtf = new();
+
+    static GlyphTypeface? Gt(string path)
+    {
+        lock (Gtf)
+        {
+            if (!Gtf.TryGetValue(path, out var g))
+            {
+                try { g = new GlyphTypeface(new Uri(path)); } catch (Exception e) when (e is IOException or NotSupportedException or ArgumentException or UriFormatException) { g = null; }
+                Gtf[path] = g;
+            }
+            return g;
+        }
+    }
+
+    /// <summary>Il testo si disegna con GlyphRun dal file del font usato dal layout: stesse larghezze misurate dal motore di impaginazione.</summary>
     static void DrawText(DrawingContext dc, TextItem t)
     {
         if (t.Text.Length == 0) return;
-        var tf = new Typeface(new FontFamily(t.Font), t.Italic ? FontStyles.Italic : FontStyles.Normal, t.Bold ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal);
-        var ft = new FormattedText(t.Text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, tf, t.Size, new SolidColorBrush(C(t.Color)), 1.0);
+        var brush = new SolidColorBrush(C(t.Color));
         bool rot = t.Rot != 0;
         if (rot) dc.PushTransform(new RotateTransform(t.Rot, t.Cx, t.Cy));
-        dc.DrawText(ft, new Point(t.X, t.Baseline - ft.Baseline));
-        if (rot) dc.Pop();
+        try
+        {
+            var gt = Gt(FontFace.Get(t.Font, t.Bold, t.Italic).Path);
+            var idx = new List<ushort>(); var adv = new List<double>(); bool ok = gt != null;
+            if (gt != null)
+                for (int i = 0; i < t.Text.Length && ok; i++)
+                {
+                    int cp = char.ConvertToUtf32(t.Text, i); if (char.IsHighSurrogate(t.Text[i])) i++;
+                    if (gt.CharacterToGlyphMap.TryGetValue(cp, out var g)) { idx.Add(g); adv.Add(gt.AdvanceWidths[g] * t.Size); } else ok = false;
+                }
+            if (ok && gt != null)
+                dc.DrawGlyphRun(brush, new GlyphRun(gt, 0, false, t.Size, 1.0f, idx, new Point(t.X, t.Baseline), adv, null, null, null, null, null, null));
+            else
+            {
+                // glifo assente nel font (simboli, emoji...): ripiego su FormattedText con la famiglia
+                var tf = new Typeface(new FontFamily(t.Font), t.Italic ? FontStyles.Italic : FontStyles.Normal, t.Bold ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal);
+                var ft = new FormattedText(t.Text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, tf, t.Size, brush, 1.0);
+                dc.DrawText(ft, new Point(t.X, t.Baseline - ft.Baseline));
+            }
+        }
+        finally { if (rot) dc.Pop(); }
     }
 
     static BitmapSource? Decode(byte[] data)
