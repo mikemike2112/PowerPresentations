@@ -1,0 +1,410 @@
+{
+    "Home":  {
+                 "Appunti":  [
+                                 "Incolla [SplitButton]",
+                                 "Incolla [Button]",
+                                 "Altre opzioni [MenuItem]",
+                                 "Taglia [Button]",
+                                 "Copia [SplitButton]",
+                                 "Copia [Button]",
+                                 "Altre opzioni [MenuItem]",
+                                 "Copia formato [Button]",
+                                 "Appunti di Office... [Button]"
+                             ],
+                 "Diapositive ":  [
+                                      "Nuova diapositiva [SplitButton]",
+                                      "Nuova diapositiva [Button]",
+                                      "Altre opzioni [MenuItem]",
+                                      "Layout [MenuItem]",
+                                      "Ripristina [Button]",
+                                      "Sezione [MenuItem]"
+                                  ],
+                 "Carattere":  [
+                                   "Tipo di carattere [ComboBox]",
+                                   "Apri [Button]",
+                                   "Dimensione carattere [ComboBox]",
+                                   "Apri [Button]",
+                                   "Aumenta dimensioni carattere [Button]",
+                                   "Riduci dimensioni carattere [Button]",
+                                   "Cancella formattazione [Button]",
+                                   "Grassetto [Button]",
+                                   "Corsivo [Button]",
+                                   "Sottolineato [Button]",
+                                   "Ombreggiatura [Button]",
+                                   "Barrato [Button]",
+                                   "Spaziatura tra i caratteri [MenuItem]",
+                                   "Maiuscole/minuscole [MenuItem]",
+                                   "Colore evidenziatore testo [SplitButton]",
+                                   "Colore evidenziatore testo [Button]",
+                                   "Altre opzioni [MenuItem]",
+                                   "Colore carattere [SplitButton]",
+                                   "Colore carattere [Button]",
+                                   "Altre opzioni [MenuItem]",
+                                   "Carattere... [Button]"
+                               ],
+                 "Paragrafo":  [
+                                   "Elenco puntato [SplitButton]",
+                                   "Elenco puntato [Button]",
+                                   "Altre opzioni [MenuItem]",
+                                   "Elenco numerato [SplitButton]",
+                                   "Elenco numerato [Button]",
+                                   "Altre opzioni [MenuItem]",
+                                   "Riduci rientro [Button]",
+                                   "Aumenta rientro [Button]",
+                                   "Interlinea [MenuItem]",
+                                   "Allinea a sinistra [Button]",
+                                   "Allinea al centro [Button]",
+                                   "Allinea a destra [Button]",
+                                   "Giustifica [Button]",
+                                   "Colonne [MenuItem]",
+                                   "Orientamento testo [MenuItem]",
+                                   "Allinea testo [MenuItem]",
+                                   "Converti in SmartArt [MenuItem]",
+                                   "Paragrafo... [Button]"
+                               ],
+                 "Disegno":  [
+                                 "Disegno [MenuItem]"
+                             ],
+                 "Modifica":  [
+                                  "Modifica [MenuItem]"
+                              ],
+                 "Voce":  [
+                              "Dettatura [SplitButton]",
+                              "Dettatura [Button]",
+                              "Altre opzioni [MenuItem]"
+                          ],
+                 "Riservatezza":  [
+                                      "Riservatezza [MenuItem]"
+                                  ],
+                 "Componenti aggiuntivi":  [
+                                               "Add‑ins [Button]"
+                                           ],
+                 "Assistenza":  [
+                                    "Designer [Button]"
+                                ],
+                 "Ribbon":  [
+                                "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                            ]
+             },
+    "Inserisci":  {
+                      "Diapositive ":  [
+                                           "Nuova diapositiva [SplitButton]",
+                                           "Nuova diapositiva [Button]",
+                                           "Altre opzioni [MenuItem]"
+                                       ],
+                      "Tabelle":  [
+                                      "Tabella [SplitButton]",
+                                      "Tabella [Button]",
+                                      "Altre opzioni [MenuItem]"
+                                  ],
+                      "Immagini":  [
+                                       "Immagini [MenuItem]"
+                                   ],
+                      "Videocamera":  [
+                                          "Cameo [SplitButton]",
+                                          "Cameo [Button]",
+                                          "Altre opzioni [MenuItem]"
+                                      ],
+                      "Illustrazioni":  [
+                                            "Forme [MenuItem]",
+                                            "Icone [Button]",
+                                            "Modelli 3D [SplitButton]",
+                                            "Modelli 3D [Button]",
+                                            "Altre opzioni [MenuItem]",
+                                            "SmartArt... [Button]",
+                                            "Grafico... [Button]"
+                                        ],
+                      "Power BI":  [
+                                       "Power BI [Button]"
+                                   ],
+                      "Moduli":  [
+                                     "Forms [Button]"
+                                 ],
+                      "Collegamenti":  [
+                                           "Collegamenti [MenuItem]"
+                                       ],
+                      "Commenti":  [
+                                       "Commento [Button]"
+                                   ],
+                      "Testo":  [
+                                    "Testo [MenuItem]"
+                                ],
+                      "Simboli":  [
+                                      "Simboli [MenuItem]"
+                                  ],
+                      "Elementi multimediali":  [
+                                                    "Elementi multimediali [MenuItem]"
+                                                ],
+                      "Ribbon":  [
+                                     "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                                 ]
+                  },
+    "Disegno":  {
+                    "Annulla":  [
+                                    "Annulla Ultimo [Button]",
+                                    "Impossibile ripetere [Button]"
+                                ],
+                    "Strumenti di disegno":  [
+                                                 "Seleziona: Consente di selezionare oggetti quali aree di input penna, forme e testo. È utile quando si lavora con oggetti che si trovano dietro il testo. [SplitButton]",
+                                                 "Selezione con lazo:Selezionare l\u0027input penna disegnando una forma. Tutti i tratti di input penna nella forma verranno selezionati. [SplitButton]",
+                                                 "Gomma:Usa la gomma per cancellare l\u0027input penna dalla pagina. [SplitButton]",
+                                                 "Penna: Bianco, 0.5 mm [SplitButton]",
+                                                 "Penna: Rosso, 0.35 mm [SplitButton]",
+                                                 "Penna: Galassia, 0.5 mm [SplitButton]",
+                                                 "Matita: Grigio, 0.5 mm [SplitButton]",
+                                                 "Evidenziatore: Grigio chiaro, 6 mm [SplitButton]",
+                                                 "Penna stilografica: Blu scuro, 1 mm [SplitButton]",
+                                                 "Pennello: Verde, 1 mm [SplitButton]",
+                                                 "Aggiungi [MenuItem]"
+                                             ],
+                    "Stencil":  [
+                                    "Righello [Button]"
+                                ],
+                    "Converti":  [
+                                     "Input penna per shape [Button]",
+                                     "In equazione [SplitButton]",
+                                     "In equazione [Button]",
+                                     "Altre opzioni [MenuItem]"
+                                 ],
+                    "Riproduci":  [
+                                      "Riproduci input penna [Button]"
+                                  ],
+                    "Guida":  [
+                                  "Guida Input penna [Button]"
+                              ],
+                    "Ribbon":  [
+                                   "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                               ]
+                },
+    "Progettazione":  {
+                          "Temi":  [
+                                       "Temi [Button]"
+                                   ],
+                          "Personalizza":  [
+                                               "Varianti [MenuItem]",
+                                               "Colori [MenuItem]",
+                                               "Tipi di carattere [MenuItem]",
+                                               "Effetti [MenuItem]",
+                                               "Stili sfondo [MenuItem]"
+                                           ],
+                          "Diapositive ":  [
+                                               "Layout [MenuItem]",
+                                               "Dimensioni diapositiva [MenuItem]"
+                                           ],
+                          "Edit":  [
+                                       "Suggerimenti di progettazione [Button]"
+                                   ],
+                          "Ribbon":  [
+                                         "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                                     ]
+                      },
+    "Transizioni":  {
+                        "Anteprima":  [
+                                          "Anteprima [Button]"
+                                      ],
+                        "Effetti transizione":  [
+                                                    "Effetti transizione [Button]"
+                                                ],
+                        "Transizione a questa diapositiva":  [
+                                                                 "Opzioni effetto [MenuItem]"
+                                                             ],
+                        "Intervallo":  [
+                                           "Suono [ComboBox]",
+                                           "Apri [Button]",
+                                           "Aumenta [Button]",
+                                           "Diminuisci [Button]",
+                                           "Applica a tutte [Button]",
+                                           "Con un clic del mouse [CheckBox]",
+                                           "Dopo [CheckBox]",
+                                           "Aumenta [Button]",
+                                           "Diminuisci [Button]"
+                                       ],
+                        "Ribbon":  [
+                                       "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                                   ]
+                    },
+    "Animazioni":  {
+                       "Anteprima":  [
+                                         "Anteprima [SplitButton]",
+                                         "Anteprima [Button]",
+                                         "Altre opzioni [MenuItem]"
+                                     ],
+                       "Stili animazione":  [
+                                                "Stili animazione [Button]"
+                                            ],
+                       "Animazione":  [
+                                          "Opzioni effetto [MenuItem]",
+                                          "Altre opzioni... [Button]"
+                                      ],
+                       "Animazione avanzata":  [
+                                                   "Aggiungi animazione [MenuItem]",
+                                                   "Riquadro Animazione [Button]",
+                                                   "Trigger [MenuItem]",
+                                                   "Copia animazione [Button]"
+                                               ],
+                       "Intervallo":  [
+                                          "Inizia [ComboBox]",
+                                          "Apri [Button]",
+                                          "Aumenta [Button]",
+                                          "Diminuisci [Button]",
+                                          "Aumenta [Button]",
+                                          "Diminuisci [Button]",
+                                          "Sposta indietro [Button]",
+                                          "Sposta avanti [Button]"
+                                      ],
+                       "Ribbon":  [
+                                      "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                                  ]
+                   },
+    "Presentazione":  {
+                          "Avvia presentazione":  [
+                                                      "Dall\u0027inizio [Button]",
+                                                      "Dalla diapositiva corrente [Button]",
+                                                      "Presenta in Teams [Button]",
+                                                      "Presentazione personalizzata [MenuItem]"
+                                                  ],
+                          "Imposta":  [
+                                          "Imposta presentazione... [Button]",
+                                          "Nascondi diapositiva [Button]",
+                                          "Prova intervalli [Button]",
+                                          "Registra [SplitButton]",
+                                          "Dalla diapositiva corrente... [Button]",
+                                          "Altre opzioni [MenuItem]",
+                                          "Mantieni le diapositive aggiornate [CheckBox]",
+                                          "Riproduci commenti audio [CheckBox]",
+                                          "Usa intervalli [CheckBox]",
+                                          "Mostra controlli multimediali [CheckBox]"
+                                      ],
+                          "Monitor":  [
+                                          "Monitor [MenuItem]"
+                                      ],
+                          "Sottotitoli":  [
+                                              "Sottotitoli [MenuItem]"
+                                          ],
+                          "Ribbon":  [
+                                         "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                                     ]
+                      },
+    "Record":  {
+                   "Anteprima":  [
+                                     "Anteprima [Button]"
+                                 ],
+                   "Videocamera":  [
+                                       "Cameo [SplitButton]",
+                                       "Cameo [Button]",
+                                       "Altre opzioni [MenuItem]"
+                                   ],
+                   "Registra":  [
+                                    "Dall\u0027inizio... [Button]",
+                                    "Dalla diapositiva corrente... [Button]",
+                                    "Registrazione schermo [Button]",
+                                    "Audio [Button]"
+                                ],
+                   "Modifica":  [
+                                    "Cancella registrazione [MenuItem]",
+                                    "Reimposta su Cameo [MenuItem]"
+                                ],
+                   "Esporta":  [
+                                   "Salva come presentazione [Button]",
+                                   "Esporta come video [MenuItem]"
+                               ],
+                   "Guida":  [
+                                 "Altre informazioni [Button]"
+                             ],
+                   "Ribbon":  [
+                                  "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                              ]
+               },
+    "Revisione":  {
+                      "Strumenti di correzione":  [
+                                                      "Controllo ortografia... [Button]",
+                                                      "Thesaurus... [Button]"
+                                                  ],
+                      "Accessibilità":  [
+                                            "Verifica accessibilità [SplitButton]",
+                                            "Verifica accessibilità [Button]",
+                                            "Altre opzioni [MenuItem]"
+                                        ],
+                      "Lingua":  [
+                                     "Traduci [Button]",
+                                     "Lingua [MenuItem]"
+                                 ],
+                      "Attività":  [
+                                       "Segna tutto come già letto [Button]",
+                                       "Mostra modifiche [Button]"
+                                   ],
+                      "Commenti":  [
+                                       "Nuovo commento [Button]",
+                                       "Elimina [SplitButton]",
+                                       "Elimina [Button]",
+                                       "Altre opzioni [MenuItem]",
+                                       "Precedente [Button]",
+                                       "Successivo [Button]",
+                                       "Mostra commenti [SplitButton]",
+                                       "Mostra commenti [Button]",
+                                       "Altre opzioni [MenuItem]"
+                                   ],
+                      "Input penna":  [
+                                          "Nascondi input penna [SplitButton]",
+                                          "Nascondi input penna [Button]",
+                                          "Altre opzioni [MenuItem]"
+                                      ],
+                      "Ribbon":  [
+                                     "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                                 ]
+                  },
+    "Visualizza":  {
+                       "Visualizzazioni presentazione":  [
+                                                             "Normale [Button]",
+                                                             "Visualizzazione Struttura [Button]",
+                                                             "Sequenza diapositive [Button]",
+                                                             "Pagina note [Button]",
+                                                             "Visualizzazione di lettura [Button]"
+                                                         ],
+                       "Visualizzazioni schema":  [
+                                                      "Schema diapositiva [Button]",
+                                                      "Schema stampati [Button]",
+                                                      "Schema note [Button]"
+                                                  ],
+                       "Mostra":  [
+                                      "Righello [CheckBox]",
+                                      "Griglia [CheckBox]",
+                                      "Guide [CheckBox]",
+                                      "Note [Button]",
+                                      "Impostazioni griglia... [Button]"
+                                  ],
+                       "Zoom":  [
+                                    "Zoom... [Button]",
+                                    "Adatta alla finestra [Button]"
+                                ],
+                       "Colori/Gradazioni di grigio":  [
+                                                           "Colore [Button]",
+                                                           "Gradazioni di grigio [Button]",
+                                                           "Bianco e nero [Button]"
+                                                       ],
+                       "Finestra":  [
+                                        "Nuova finestra [Button]",
+                                        "Disponi tutto [Button]",
+                                        "Sovrapponi [Button]",
+                                        "Sposta divisione [Button]",
+                                        "Cambia finestra [MenuItem]"
+                                    ],
+                       "Macro":  [
+                                     "Macro [Button]"
+                                 ],
+                       "Ribbon":  [
+                                      "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                                  ]
+                   },
+    "Guida":  {
+                  "Guida":  [
+                                "Guida [Button]",
+                                "Feedback [Button]",
+                                "Mostra formazione [Button]",
+                                "Novità [Button]"
+                            ],
+                  "Ribbon":  [
+                                 "Opzioni visualizzazione barra multifunzione [MenuItem]"
+                             ]
+              }
+}

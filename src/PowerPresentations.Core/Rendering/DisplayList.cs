@@ -33,6 +33,8 @@ public sealed class DisplayList
     public double Height { get; init; }
     public Fill? Background { get; set; }
     public List<DrawItem> Items { get; } = new();
+    /// <summary>Forme ignorate perché malformate (il file non viene modificato).</summary>
+    public List<string> Warnings { get; } = new();
     /// <summary>Rimpicciolimento calcolato per le forme con normAutofit (solo con RenderOptions.RecomputeAutofit): id → (fontScale, lnSpcReduction).</summary>
     public Dictionary<int, (double Scale, double Reduction)> Fits { get; } = new();
     /// <summary>Riquadri delle forme di primo livello della slide (per selezione e modifica): id → rettangolo.</summary>

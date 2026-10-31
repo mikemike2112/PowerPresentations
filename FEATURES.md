@@ -1,0 +1,81 @@
+# FEATURES — inventario e stato
+
+## Metodo dell'inventario
+
+Lo strumento computer use non è disponibile, quindi l'app vera è stata ispezionata così:
+
+1. `tools/ribbon-inventory.ps1` avvia PowerPoint con la **finestra visibile** su una presentazione vuota creata dallo script
+   (nessun documento dell'utente), legge il ribbon con **UI Automation** (`System.Windows.Automation`: schede, gruppi, comandi)
+   e scrive `tools/ribbon-inventory.json` (11 schede, circa 230 controlli in italiano).
+2. Valori predefiniti e comportamento reale (layout, stili, tabelle, transizioni, note, autofit, formato dei file) sono stati osservati
+   generando il corpus con `tools/make-corpus.ps1` (35 file creati dal vero PowerPoint via COM) e confrontando i PDF esportati da PowerPoint
+   con quelli del clone (`tools/visual-compare.ps1`).
+3. Nessuna decompilazione: solo comportamento osservabile, file prodotti e specifica ECMA-376.
+
+Priorità: **P0** = richiesto per la prima consegna, **P1** = importante, **P2** = utile. Si spunta `[x]` solo ciò che è implementato **e** coperto da
+un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fatto, oppure fatto ma senza test automatico (indicato).
+
+## File
+
+- [x] P0 Apri `.pptx` (Open XML SDK, file non fidato: errori → messaggio chiaro) — `EditTests.MalformedInput_*`, `RoundTripTests`
+- [x] P0 Salva / Salva con nome, atomico (file temporaneo + sostituzione) — `EditTests.Save_IsAtomic_*`
+- [x] P0 Nuova presentazione da modello incorporato — `EditTests.New_FromTemplate_*`, `OfficeEditTests.NewFromTemplate_OpensInOffice`
+- [x] P0 Round-trip senza perdite (part, relazioni, elementi/attributi sconosciuti, `mc:Ignorable`, `extLst`, part custom) — `RoundTripTests.*` su 35 file + `UnknownContent_*`
+- [x] P0 Esporta PDF (PDFsharp, slide nascoste escluse come in PowerPoint) — `PdfTests.*`, confronto visivo
+- [ ] P1 Salva come `.pptm`/`.potx`, apertura `.ppt` / `.pptm` (oggi: messaggio di formato non valido)
+- [ ] P1 Annulla / Ripristina
+- [ ] P2 Stampa, Esporta come video/immagini, protezione con password
+
+## Home
+
+- [x] P0 Nuova diapositiva con scelta del layout — `OfficeEditTests.AddSlide_*`
+- [x] P0 Duplica / Elimina / Nascondi diapositiva (note e sezioni coerenti) — `EditTests.DeleteSlide_*`, `Duplicate_*`, `OfficeEditTests.Unhide_*`
+- [x] P0 Grassetto, Corsivo, Sottolineato, dimensione (A+/A−), colore carattere (tavolozza) — `EditTests.SetShapeText_KeepsRunFormat*` (XML); i pulsanti sono provati a mano
+- [ ] P1 Tipo di carattere, spaziatura caratteri, barrato, apice/pedice (solo rendering: `RendererTests`/confronto visivo, nessun comando)
+- [ ] P1 Elenchi puntati/numerati e allineamento: **disegnati** correttamente (`RendererTests.Bullets_*`, confronto visivo) ma senza comandi di modifica
+- [ ] P1 Layout della slide esistente, Ripristina, Sezioni (le sezioni si conservano e si aggiornano all'eliminazione)
+- [ ] P1 Copia/Incolla/Taglia, Copia formato
+- [ ] P2 Cerca/Sostituisci, Seleziona, Dettatura, Designer
+
+## Inserisci
+
+- [x] P0 Casella di testo — `OfficeEditTests.InsertedObjects_AreRealOfficeShapes`
+- [x] P0 Forme base (18 geometrie: rettangolo, arrotondato, ellisse, triangoli, rombo, parallelogramma, trapezio, esagono, ottagono, croce, 4 frecce, stella, cheuron, pentagono) — idem
+- [x] P0 Immagini PNG/JPEG/GIF/BMP — idem
+- [x] P0 Tabella (dimensioni libere, stile "Medio 2 – Colore 1") e modifica del testo di cella da API — `OfficeEditTests.TableCellEdit_*`; UI: inserimento 3×3, modifica celle non ancora disponibile da interfaccia
+- [ ] P1 Altre forme predefinite (callout, flowchart, cuore, fulmine… oggi disegnate come rettangolo), connettori con aggancio, linee
+- [ ] P1 Grafico, SmartArt, video/audio, equazioni, WordArt, icone, 3D (si **conservano** nel file; il rendering mostra un segnaposto)
+- [ ] P1 Commenti (si conservano; non visualizzati né modificabili), collegamenti ipertestuali (disegnati con colore del tema + sottolineatura, non modificabili)
+- [ ] P2 Intestazione/piè di pagina, numero slide (si disegnano se presenti nel file), data, simboli
+
+## Progettazione (temi e schemi)
+
+- [x] P0 Slide basate su master e layout; ereditarietà slide → layout → master → tema (posizioni, stili di testo per livello, `clrMap`, sfondo, forme del master/layout, `showMasterSp`) — `RendererTests.*`, confronto visivo
+- [x] P0 Temi letti dal file: schema colori (con trasformazioni lumMod/lumOff/tint/shade/alpha) e font maggiore/minore — `RendererTests.ThemeColors_*`, `ThemeFonts_*`, `ColorTransforms_*`
+- [x] P0 Rimpicciolimento automatico del testo (`normAutofit`: usa `fontScale` memorizzato; ricalcolo e scrittura dopo la modifica) — `RendererTests.Autofit_*`, `EditTests.SetShapeText_OnAutofitPlaceholder_*`
+- [x] P0 Formato 4:3 / 16:9 e dimensioni personalizzate lette dal file — `PdfTests` (4:3), `OfficeRoundTripTests`
+- [ ] P1 Cambio tema/varianti/colori/font, Dimensioni diapositiva, Stili sfondo (editor dello schema diapositiva)
+- [ ] P2 Designer
+
+## Visualizza
+
+- [x] P0 Vista Normale con miniature a sinistra, area di modifica e note — `UiTests.*` (finestra reale)
+- [x] P0 Vista a miniature "Sequenza diapositive" — `UiTests.MainWindow_RendersCorpusFile_AndSlideSorterView`
+- [x] P0 Riordino delle slide con drag & drop (tocca solo `sldIdLst`; part, relazioni, note e commenti restano) — `EditTests.Reorder_*`, `UiTests.RealWindow_*` (trascinamento reale col mouse)
+- [x] P0 Note del relatore (lettura, scrittura, creazione di notesMaster/notesSlide) — `OfficeEditTests.Notes_*`
+- [x] P1 Tema scuro (predefinito) / chiaro commutabile — screenshot `docs/app-light.png` (nessun test automatico)
+- [ ] P1 Zoom, righello, griglia, guide, Pagina note, Schema diapositiva
+
+## Transizioni e presentazione
+
+- [x] P0 Transizioni base lette/scritte: nessuna, dissolvenza, spingi, cancella, copri, scopri (direzione e velocità) — `OfficeEditTests.Transition_*`, `RendererTests.Transitions_AreRead`
+- [ ] P0 Riproduzione animata delle transizioni nella presentazione (fade/push/cover/pull/wipe): implementata (`ShowWindows.cs`), **senza test automatico** dell'animazione
+- [x] P0 Modalità presentazione a schermo intero (F5, Maiusc+F5, frecce, Esc, B per schermo nero, salta le slide nascoste) — `UiTests.RealWindow_*` (F5 + freccia reali)
+- [x] P0 Vista relatore (slide corrente, successiva, note, timer, contatore) — `UiTests.PresentationAndPresenterWindows_Render` (rendering; **non verificata** su due monitor: un solo schermo sul PC di sviluppo)
+- [ ] P1 Altri effetti (cubo, vortice, p14…): letti come "altro", riprodotti come dissolvenza; avanzamento automatico, suoni, anteprima
+- [ ] P1 Animazioni degli oggetti (si conservano nel file, non riprodotte), presentazioni personalizzate, Prova intervalli, registrazione
+
+## Revisione / altro
+
+- [ ] P1 Controllo ortografico, commenti, traduzione
+- [ ] P2 Accessibilità, protezione, firma, macro (mai eseguite: i file con macro non si aprono)

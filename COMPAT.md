@@ -1,0 +1,72 @@
+# COMPAT — compatibilità con PowerPoint (ECMA-376)
+
+Tutti i numeri qui sotto vengono dall'ultima esecuzione reale dei test (`dotnet test`) e degli script in `tools/`.
+
+## Corpus
+
+`tests/corpus/office-made/`: **35 file** generati dal vero PowerPoint (Microsoft 365, interfaccia italiana, tema "Office" con Aptos) da
+`tools/make-corpus.ps1` (rigenerabile; Author/LastAuthor = `Corpus`, verificato da `Corpus_Metadata_*`; nessun dato personale nelle part).
+Un file per funzionalità (titolo, 11 layout, master personalizzato, colori/font del tema, testo, elenchi, forme, rotazioni, connettori, immagini
+con ritaglio, tabelle e celle unite, note, 6 transizioni, animazioni, slide nascosta, sezioni, sfondi, autofit, gruppi, collegamenti, commenti, piè
+di pagina, layout personalizzato, 4:3, ombre/effetti, WordArt) più due file "misti" realistici.
+
+**Non nel corpus**: grafici (la creazione apre Excel, processo di un altro agente: non toccato) e SmartArt (`AddSmartArt` non utilizzabile via COM
+su questa installazione). Questi oggetti sono comunque conservati dal round-trip (provato con l'elemento sconosciuto/part custom, non con file reali).
+
+## Round-trip (per ognuno dei 35 file)
+
+| Criterio | Esito |
+|---|---|
+| a. salva col clone → `OpenXmlValidator` (Microsoft365): nessun errore nuovo | **35/35** (gli originali di PowerPoint hanno 0 errori del validatore: nessun falso positivo da elencare) |
+| b. il salvato si riapre nel vero PowerPoint via COM, senza errori né ripristino | **35/35** (100%) |
+| c. contenuto identico letto da Office (n. slide/forme, testo, tabelle, note, transizione, nascosta, dimensioni) | **35/35** |
+| d. stessa lista di part e relazioni, ogni part XML semanticamente identica (canonicalizzata), binari identici | **35/35** |
+| e. controllo negativo | vedi sotto |
+| f. test con modifica (12 scenari) | **12/12** letti correttamente da PowerPoint |
+
+Modifiche verificate in Office: testo cambiato (resto intatto), riordino (note ancora agganciate alla slide giusta), nuova slide da layout,
+eliminazione con sezioni, note create/modificate, transizione, casella/forma/immagine/tabella inserite, duplicazione (con note), slide
+nascosta → visibile, cella di tabella unita, nuova presentazione dal modello.
+
+Contenuto sconosciuto (`UnknownContent_SurvivesEditAndSave`): part custom con relazione, elemento di namespace estraneo dichiarato in `mc:Ignorable`,
+attributo sconosciuto, `extLst` — tutto presente dopo modifica, riordino, note e salvataggio, validatore senza errori nuovi.
+
+### Controllo negativo del rilevatore
+
+`tools/office-inspect.ps1` apre con `Presentations.Open(..., ReadOnly, WithWindow=msoFalse)`. Il rilevatore **fallisce** su:
+XML rotto in una slide (`PowerPoint could not open the file`), relazione/part mancante (layout cancellato: `0x80070570`), attributo numerico invalido
+(`<a:off x="abc…`). Il file buono dello stesso test passa. In questa configurazione PowerPoint **rifiuta** i file corrotti con un'eccezione COM
+invece di mostrare il dialogo di ripristino; il caso del dialogo modale è comunque coperto dal watchdog per PID (`tools/watchdog.ps1`):
+`tools/test-watchdog.ps1` dimostra che, fermando il battito, viene ucciso **solo** il PID di PowerPoint avviato dallo script (`OfficeNegativeControlTests`).
+Un eventuale ripristino silenzioso che alteri il contenuto verrebbe colto dal confronto (c). Limite: non abbiamo trovato un file che PowerPoint
+apra *riparandolo* senza dialogo, quindi quel ramo del rilevatore non è stato osservato direttamente.
+
+## Confronto visivo (PDF PowerPoint vs PDF clone, rasterizzati con `Windows.Data.Pdf`)
+
+`tools/visual-compare.ps1` produce per ogni file l'immagine affiancata. Differenza media di pixel (a 160×90) ≤ 0,5% su 30 file su 35; i valori più alti
+sono tutti spiegati da differenze reali osservate guardando le immagini:
+
+- **Ombre, bagliore, smusso** (`shadow-effects`, 1,3%): non disegnati (nessun supporto a `effectLst`/`effectRef`).
+- **Riempimento a motivo** (`shape-fills-lines`): il clone usa il colore di primo piano pieno invece del motivo.
+- **Geometrie predefinite non implementate** (`shapes-basic`, cuore e fulmine): disegnate come rettangolo; vale per tutte le geometrie fuori dalle 18 supportate.
+- **WordArt/contorno del testo** (`wordart`): il clone disegna il testo con riempimento pieno, senza contorno/gradiente del testo.
+- **Gradienti** (`slide-background` slide 2, `shape-fills-lines`): interpolazione lineare in sRGB tra gli stop; i toni intermedi differiscono leggermente da PowerPoint.
+- **Rimpicciolimento automatico** (`autofit-shrink`, 2,8%): PowerPoint, aprendo in sola lettura senza finestra, non ricalcola `fontScale`; il clone fa lo stesso
+  (usa il valore memorizzato) e lo ricalcola solo quando si modifica il testo. Differenza residua = larghezza dei caratteri.
+- **Interlinea multipla** (`paragraph-align-spacing`): ~1–2 pt di scarto verticale con interlinea 2,0.
+- **Font**: il tema Office usa Aptos (font cloud). Il clone lo trova in `%LOCALAPPDATA%\Microsoft\FontCache\4\CloudFonts` e lo usa sia per l'impaginazione
+  sia per il disegno (GlyphRun dal file): larghezze identiche, niente crenatura (kerning) → scarti sub-pixel sul testo lungo. Se il font non è installato si
+  ripiega su Segoe UI poi Arial.
+- **Colori `tint`/`shade`**: Office li calcola in RGB lineare (verificato sui pixel del PDF: 204,210,216 per accent1 tint 40%); il clone fa lo stesso.
+
+## Limiti noti (non perdono dati: gli elementi non gestiti si conservano)
+
+- Grafici, SmartArt, OLE, video/audio: segnaposto con etichetta; `p:oleObj` e `mc:AlternateContent` con fallback immagine usano il ramo `Fallback`.
+- Testo: niente giustificazione, niente colonne, niente testo verticale/ruotato di 90°, niente crenatura, niente `a:arcTo` nei freeform, small caps ≈ normale.
+- Gruppi: la rotazione/ribaltamento del gruppo non si applica ai figli (la posizione sì).
+- Immagini: EMF/WMF/SVG senza PNG di ripiego → riquadro grigio; maschere di ritaglio a forma ignorate.
+- Slide numero/data: campo `slidenum` calcolato, `datetime` mostra il testo memorizzato.
+- Transizioni: gli effetti p14 (vortice, cubo…) si leggono come "altro" e si riproducono in dissolvenza; in scrittura il clone rimuove un `mc:AlternateContent` di transizione e scrive la forma base.
+- Vista relatore e secondo monitor: logica implementata (presentazione sul secondo schermo, relatore sul primo), **non verificata** (PC con un solo schermo).
+- Duplicazione slide: i commenti non si copiano; le note sì.
+- `.pptm`, `.ppt`, file protetti da password: non si aprono (messaggio chiaro).

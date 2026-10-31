@@ -73,6 +73,8 @@
             </TabItem>
             <TabItem Header="Visualizza">
                 <WrapPanel>
+                    <Button Content="Normale" Click="OnNormalView"/>
+                    <Button Content="Sequenza diapositive" Click="OnSorterView"/>
                     <Button Content="▶ Presenta (F5)" Click="OnPresent"/>
                     <Button Content="Presenta da questa slide (Maiusc+F5)" Click="OnPresentHere"/>
                     <Button Content="Vista relatore" Click="OnPresenter"/>
@@ -100,20 +102,20 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Text="{Binding Number}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Top" Margin="2,2,0,0"/>
                             <Border Grid.Column="1" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Opacity="{Binding Opacity}">
-                                <Image Source="{Binding Image}" Stretch="Uniform"/>
+                                <Image Source="{Binding Image}" Stretch="Uniform" Width="{Binding Width}"/>
                             </Border>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
 
-            <Grid Grid.Column="1">
+            <Grid x:Name="EditArea" Grid.Column="1">
                 <app:SlideView x:Name="View"/>
-                <TextBox x:Name="Editor" Visibility="Collapsed" AcceptsReturn="True" AcceptsTab="False" HorizontalAlignment="Left" VerticalAlignment="Top"
+                <TextBox x:Name="Editor" Visibility="Collapsed" Background="White" Foreground="Black" CaretBrush="Black" AcceptsReturn="True" AcceptsTab="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                          BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" TextWrapping="Wrap" LostFocus="OnEditorLost" PreviewKeyDown="OnEditorKey"/>
             </Grid>
 
-            <Grid Grid.Column="1" Grid.Row="1" Background="{DynamicResource PanelBrush}">
+            <Grid x:Name="NotesArea" Grid.Column="1" Grid.Row="1" Background="{DynamicResource PanelBrush}">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <TextBlock Text="Note del relatore" Foreground="{DynamicResource MutedBrush}" Margin="8,4" FontSize="12"/>
                 <TextBox x:Name="Notes" Grid.Row="1" AcceptsReturn="True" TextWrapping="Wrap" BorderThickness="0,1,0,0" LostFocus="OnNotesLost"/>
