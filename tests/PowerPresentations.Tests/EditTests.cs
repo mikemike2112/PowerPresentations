@@ -71,6 +71,15 @@ public class EditTests
     }
 
     [Fact]
+    public void Duplicate_CopiesUnsavedEditsOfTheSource()
+    {
+        using var d = PptxDocument.Open(Env.CorpusPath("title-slide.pptx"));
+        d.SetTransition(0, "fade"); d.SetShapeText(0, FirstText(d, 0), "Modificato");
+        var i = d.DuplicateSlide(0);
+        Assert.Equal("fade", d.GetTransition(i).Kind); Assert.Equal("Modificato", d.GetShapeText(i, FirstText(d, i)));
+    }
+
+    [Fact]
     public void SetShapeText_KeepsRunFormatAndParagraphProperties()
     {
         var dst = Out("fmt");
@@ -153,9 +162,9 @@ public class EditTests
             using var w = new StreamWriter(z.CreateEntry("ppt/slides/slide1.xml").Open()); w.Write(t.Replace("sz=\"6000\"", "sz=\"abc\"").Replace("<a:off x=\"", "<a:off x=\"zz"));
         }
         using var d = PptxDocument.Open(f);
-        var ex = Record.Exception(() => new SlideRenderer(d).Render(0));
-        // un valore numerico non valido deve essere ignorato o riportato, mai un crash non gestito di tipo qualsiasi
-        Assert.True(ex == null || ex is FormatException || ex is InvalidOperationException || ex is System.Xml.XmlException, ex?.ToString());
+        var dl = new SlideRenderer(d).Render(0);           // nessuna eccezione: le forme malformate sono ignorate e segnalate
+        Assert.NotEmpty(dl.Warnings.Concat(dl.Items.Select(_ => "x")));
+        Assert.Contains(dl.Items, i => i is TextItem t && t.Text == "Sottotitolo di prova");   // il resto della slide si disegna
     }
 }
 

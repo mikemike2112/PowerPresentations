@@ -20,6 +20,7 @@ public sealed class ThumbItem : INotifyPropertyChanged
     ImageSource? _img;
     public int Number { get; set; }
     public double Opacity { get; set; } = 1;
+    public double Width { get; set; } = 170;
     public ImageSource? Image { get => _img; set { _img = value; PropertyChanged?.Invoke(this, new(nameof(Image))); } }
     public event PropertyChangedEventHandler? PropertyChanged;
 }
@@ -33,6 +34,7 @@ public partial class MainWindow : Window
     int _editId;
     bool _cancelEdit;
     bool _dark = true;
+    bool _sorter;
     readonly ObservableCollection<ThumbItem> _thumbs = new();
     Point _dragStart; int _dragIndex = -1;
 
@@ -53,6 +55,7 @@ public partial class MainWindow : Window
         View.EditRequested += BeginEdit;
         PreviewKeyDown += OnWindowKey;
         Closing += OnClosing;
+        Thumbs.MouseDoubleClick += OnThumbDoubleClick;
         Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 && f[0].EndsWith(".pptx", StringComparison.OrdinalIgnoreCase) && Confirm()) OpenFile(f[0]); };
         NewDoc();
     }
@@ -95,7 +98,7 @@ public partial class MainWindow : Window
     ThumbItem MakeThumb(int i)
     {
         var bmp = SlideDrawing.ToBitmap(_r!.Render(i), 320);
-        return new ThumbItem { Number = i + 1, Image = bmp, Opacity = _doc!.IsHidden(i) ? 0.4 : 1 };
+        return new ThumbItem { Number = i + 1, Image = bmp, Opacity = _doc!.IsHidden(i) ? 0.4 : 1, Width = _sorter ? 300 : 170 };
     }
 
     void RebuildThumbs()
@@ -158,7 +161,24 @@ public partial class MainWindow : Window
         _doc.MoveSlide(from, to); _cur = to; RebuildThumbs(); ShowSlide(to); UpdateTitle();
     }
 
+    void OnThumbDoubleClick(object s, MouseButtonEventArgs e) { if (_sorter && Thumbs.SelectedIndex >= 0) { int i = Thumbs.SelectedIndex; SetSorter(false); ShowSlide(i); } }
+
     void OnThumbKey(object s, KeyEventArgs e) { if (e.Key == Key.Delete) { OnDeleteSlide(s, e); e.Handled = true; } }
+
+    // vista Sequenza diapositive: le miniature occupano tutta l'area (griglia), il riordino con drag & drop funziona uguale
+    void SetSorter(bool on)
+    {
+        if (_doc == null) return;
+        CommitEdit(); SaveNotes(); _sorter = on;
+        Grid.SetColumnSpan(Thumbs, on ? 2 : 1); Grid.SetRowSpan(Thumbs, 2);
+        EditArea.Visibility = NotesArea.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        var panel = on ? new FrameworkElementFactory(typeof(WrapPanel)) : new FrameworkElementFactory(typeof(VirtualizingStackPanel));
+        Thumbs.ItemsPanel = new ItemsPanelTemplate(panel);
+        RebuildThumbs();
+    }
+
+    void OnSorterView(object s, RoutedEventArgs e) => SetSorter(true);
+    void OnNormalView(object s, RoutedEventArgs e) => SetSorter(false);
 
     // ---------- file ----------
     void OnNew(object s, RoutedEventArgs e) { if (Confirm()) NewDoc(); }
@@ -459,6 +479,7 @@ public partial class MainWindow : Window
                 }
                 if (mode == "edit") { var h = View.List!.Hits.FirstOrDefault(x => x.HasText); if (h.Id != 0) { View.SelectedId = h.Id; BeginEdit(h.Id); UpdateLayout(); } }
                 if (mode == "light") OnTheme(this, new RoutedEventArgs());
+                if (mode == "sorter") SetSorter(true);
                 if (mode?.StartsWith("slide") == true && int.TryParse(mode[5..], out var n)) ShowSlide(n - 1);
                 Capture((FrameworkElement)Content, path);
             }

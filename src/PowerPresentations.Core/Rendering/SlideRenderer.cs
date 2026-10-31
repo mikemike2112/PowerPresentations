@@ -184,6 +184,16 @@ public sealed partial class SlideRenderer
         if (tree == null) return;
         foreach (var e in Expand(tree))
         {
+            try { DrawOne(st, e, xf, slideLevel, top); }
+            // file non fidato: un valore malformato in UNA forma non deve impedire il disegno del resto della slide
+            catch (Exception ex) when (ex is FormatException or OverflowException or InvalidOperationException or ArgumentException or KeyNotFoundException)
+            { st.Dl.Warnings.Add($"forma {IdOf(e)} ignorata: {ex.Message}"); }
+        }
+    }
+
+    void DrawOne(St st, XElement e, Xf xf, bool slideLevel, bool top)
+    {
+        {
             switch (e.Name.LocalName)
             {
                 case "sp": DrawSp(st, e, xf, slideLevel, top); break;

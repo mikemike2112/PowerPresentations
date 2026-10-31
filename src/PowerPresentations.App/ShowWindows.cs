@@ -162,12 +162,12 @@ public sealed class PresenterWindow : Window
     {
         _c = c; Title = "Vista relatore — PowerPresentations"; Width = 1200; Height = 720;
         Background = (Brush)Application.Current.Resources["BgBrush"]; Foreground = (Brush)Application.Current.Resources["FgBrush"];
-        var g = new Grid { Margin = new Thickness(12) };
+        var g = new Grid { Margin = new Thickness(0), Background = (Brush)Application.Current.Resources["BgBrush"] };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
-        var left = new Border { BorderBrush = (Brush)Application.Current.Resources["AccentBrush"], BorderThickness = new Thickness(2), Margin = new Thickness(0, 0, 12, 0), Child = _cur, Background = Brushes.Black };
+        var left = new Border { Margin = new Thickness(12, 12, 24, 12), BorderBrush = (Brush)Application.Current.Resources["AccentBrush"], BorderThickness = new Thickness(2), Child = _cur, Background = Brushes.Black };
         g.Children.Add(left);
-        var right = new Grid(); right.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star) }); right.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); right.RowDefinitions.Add(new RowDefinition { Height = new GridLength(3, GridUnitType.Star) });
+        var right = new Grid { Margin = new Thickness(0, 12, 12, 12) }; right.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star) }); right.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); right.RowDefinitions.Add(new RowDefinition { Height = new GridLength(3, GridUnitType.Star) });
         right.Children.Add(new Border { BorderBrush = (Brush)Application.Current.Resources["LineBrush"], BorderThickness = new Thickness(1), Child = _next, Background = Brushes.Black });
         var bar = new StackPanel { Margin = new Thickness(0, 8, 0, 8) }; Grid.SetRow(bar, 1); bar.Children.Add(_timer); bar.Children.Add(_info);
         var btns = new StackPanel { Orientation = Orientation.Horizontal };

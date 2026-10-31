@@ -77,7 +77,8 @@ public sealed partial class PptxDocument
     {
         var src = Slide(i);
         var np = PresentationPart.AddNewPart<SlidePart>();
-        using (var s = src.GetStream()) np.FeedData(s);
+        // copia dal DOM corrente (le modifiche non ancora salvate sono nel DOM, non nello stream della part)
+        using (var s = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(src.Slide!.OuterXml))) np.FeedData(s);
         foreach (var pr in src.Parts)
         {
             if (pr.OpenXmlPart is NotesSlidePart or SlideCommentsPart or PowerPointCommentPart) continue;

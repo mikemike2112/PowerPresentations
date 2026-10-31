@@ -10,6 +10,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        DispatcherUnhandledException += (_, ev) => { MessageBox.Show("Errore imprevisto: " + ev.Exception.Message + "\nIl file aperto non è stato modificato su disco.", "PowerPresentations", MessageBoxButton.OK, MessageBoxImage.Error); ev.Handled = true; };
         var a = e.Args;
         // modalità da riga di comando per i test visivi: --render-png <pptx> <cartella> [larghezza] | --export-pdf <pptx> <pdf>
         if (a.Length >= 3 && a[0] == "--render-png")
