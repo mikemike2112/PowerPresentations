@@ -157,6 +157,7 @@ public sealed partial class SlideRenderer
                         var f = FillEl(ts?.Element(Ns.A + "fill"));
                         if (f != null) fill = ResolveFill(st, f, null);
                     }
+                if (st.Dl.Hits.Any(h => h.Id == id)) st.Dl.TableCells.Add((id, r, c, cb));
                 var rect = Geometry.Place(Geometry.Preset("rect", cb.W, cb.H, _ => null), cb.X, cb.Y, cb.W, cb.H, 0, false, false);
                 if (fill != null) Add(st, new PathItem(rect, fill, null), id);
                 if (ci.Laid != null)

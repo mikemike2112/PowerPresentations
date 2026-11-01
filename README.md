@@ -2,7 +2,7 @@
 
 Editor di presentazioni per Windows 10/11 (x64), clone aperto di PowerPoint scritto in C# / .NET 10 / WPF. Il formato nativo è `.pptx` (ECMA-376):
 un file creato da PowerPoint si apre e si vede come in PowerPoint; un file salvato da PowerPresentations si apre in PowerPoint **senza** "contenuto
-illeggibile / ripristino" e con lo stesso aspetto. Tema scuro predefinito (accento `#ff7a45`), tema chiaro commutabile.
+illeggibile / ripristino" e con lo stesso aspetto. Tema scuro predefinito (accento `#F35930`), tema chiaro commutabile.
 
 Licenza MIT. Nomi, icona e grafica sono originali; nessuna risorsa Microsoft nel repository (vedi `THIRD_PARTY.md`).
 

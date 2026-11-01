@@ -35,6 +35,38 @@ public class UiTests
     }
 
     [Fact]
+    public void PowersTab_RealClickTogglesTheme_PersistsAcrossRestart_CorruptSettingsDoNotCrash()
+    {
+        var shots = Directory.CreateDirectory(Path.Combine(Env.Work, "ui-powers")).FullName;
+        var json = Run("ui-powers.ps1", $"-Shots \"{shots}\"").Trim().Split((char)10).Last().Trim();
+        using var d = JsonDocument.Parse(json); var r = d.RootElement;
+        Assert.True(r.GetProperty("defaultDarkInFile").GetBoolean());                          // prima apertura: nessun file, tema scuro
+        Assert.Contains("\"Dark\":false", r.GetProperty("settingsAfterToggle").GetString());   // clic reale sull'interruttore -> salvato
+        Assert.True(r.GetProperty("restartLuminance").GetInt32() > 180);                       // riavvio: parte chiaro
+        Assert.Equal(0, r.GetProperty("corruptExit").GetInt32());                              // file corrotto: nessun crash
+        Assert.True(r.GetProperty("corruptLuminance").GetInt32() < 60);                        // e si torna al tema scuro predefinito
+        Assert.True(new FileInfo(Path.Combine(shots, "powers-scuro.png")).Length > 5000 && new FileInfo(Path.Combine(shots, "powers-chiaro.png")).Length > 5000);
+    }
+
+    static string Sha(string f) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(f)));
+
+    [Theory]
+    [InlineData("fade", null)] [InlineData("push", "l")] [InlineData("wipe", "r")] [InlineData("cover", "u")] [InlineData("pull", "l")]
+    public void TransitionPlayback_ShowsAnIntermediateFrame(string kind, string? dir)
+    {
+        var f = Env.Copy("mixed-realistic-1.pptx", "-play-" + kind);
+        using (var d = Core.PptxDocument.Open(f)) { d.SetTransition(1, kind, dir, "slow"); d.SaveAs(f); }
+        var prefix = Path.Combine(Env.Work, "play-" + kind);
+        var exe = Path.Combine(Env.Repo, "src", "PowerPresentations.App", "bin", "Debug", "net10.0-windows", "PowerPresentations.App.exe");
+        using var p = Process.Start(new ProcessStartInfo(exe, $"--transition-frames \"{f}\" 1 \"{prefix}\"") { UseShellExecute = false })!;
+        Assert.True(p.WaitForExit(60000), "app non terminata"); Assert.Equal(0, p.ExitCode);
+        string a = Sha(prefix + "-0-prima.png"), m = Sha(prefix + "-1-meta.png"), z = Sha(prefix + "-2-dopo.png");
+        Assert.NotEqual(a, z);   // la slide cambia
+        Assert.NotEqual(m, a);   // a metà animazione il fotogramma non è più la slide di partenza
+        Assert.NotEqual(m, z);   // e non è ancora quella di arrivo: la transizione viene davvero riprodotta
+    }
+
+    [Fact]
     public void PresentationAndPresenterWindows_Render()
     {
         var o = Path.Combine(Env.Work, "ui-present.png");

@@ -196,3 +196,53 @@ public class PdfTests
         }
     }
 }
+
+public class SettingsAndUndoTests
+{
+    [Fact]
+    public void Settings_RoundTrip_AndCorruptedFilesFallBackToDefaults()
+    {
+        var f = Path.Combine(Env.Work, "settings.json");
+        Assert.True(Core.AppSettings.Load(f).Dark);                         // nessun file: scuro
+        new Core.AppSettings { Dark = false }.Save(f);
+        Assert.False(Core.AppSettings.Load(f).Dark);
+        foreach (var bad in new[] { "{ non json", "", "[1,2,3]", "{\"Dark\":\"forse\"}", new string('x', 5000) })
+        {
+            File.WriteAllText(f, bad);
+            Assert.True(Core.AppSettings.Load(f).Dark, bad);                // mai un'eccezione
+        }
+        File.Delete(f); Directory.CreateDirectory(f);                       // percorso che è una cartella: non si può leggere né scrivere
+        Assert.True(Core.AppSettings.Load(f).Dark); new Core.AppSettings().Save(f);
+    }
+
+    [Fact]
+    public void SnapshotRestore_UndoesAndRedoesEdits()
+    {
+        using var d = PptxDocument.Open(Env.CorpusPath("textbox-basic.pptx"));
+        var id = new SlideRenderer(d).Render(0).Hits.First(h => h.HasText).Id;
+        var before = d.GetShapeText(0, id); var s0 = d.Snapshot();
+        d.SetShapeText(0, id, "cambiato"); d.AddSlide(d.Layouts[1], 0); var s1 = d.Snapshot();
+        Assert.Equal(2, d.Slides.Count);
+        d.Restore(s0); Assert.Single(d.Slides); Assert.Equal(before, d.GetShapeText(0, id));
+        d.Restore(s1); Assert.Equal(2, d.Slides.Count); Assert.Equal("cambiato", d.GetShapeText(0, id));
+    }
+
+    [Fact]
+    public void TableOptions_AlignmentAndCellText_AreWritten()
+    {
+        var dst = Path.Combine(Env.Work, "table-ui.pptx");
+        using (var d = PptxDocument.Open(Env.CorpusPath("table-basic.pptx")))
+        {
+            var r = new SlideRenderer(d).Render(0); var frame = r.TableCells.First().FrameId;
+            Assert.True(d.GetTableFlag(0, frame, "firstRow"));
+            d.SetTableFlag(0, frame, "firstRow", false); d.SetTableFlag(0, frame, "lastCol", true);
+            d.SetCellText(0, frame, 1, 1, "X"); Assert.Equal("X", d.GetCellText(0, frame, 1, 1));
+            var title = r.Hits.First(h => h.Id != frame && h.HasText).Id; d.SetAlignment(0, title, "r");
+            d.SaveAs(dst);
+        }
+        using var z = System.IO.Compression.ZipFile.OpenRead(dst);
+        var x = new StreamReader(z.GetEntry("ppt/slides/slide1.xml")!.Open()).ReadToEnd();
+        Assert.Contains("lastCol=\"1\"", x); Assert.Contains("firstRow=\"0\"", x); Assert.Contains("algn=\"r\"", x);
+        Assert.Empty(RoundTripTests.NewErrors(Env.CorpusPath("table-basic.pptx"), dst));
+    }
+}

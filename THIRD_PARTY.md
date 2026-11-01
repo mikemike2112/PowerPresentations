@@ -22,3 +22,8 @@ i font si leggono a runtime dal sistema dell'utente, l'icona dell'app è origina
 | coverlet.collector | 6.0.4 | MIT |
 
 `tools/PdfRaster` usa solo API di Windows (`Windows.Data.Pdf`) e WPF, nessun pacchetto.
+
+## Icona dell'applicazione
+
+`assets/icon-source.png` e `src/PowerPresentations.App/icon.ico` (generata da `tools/make-icon.ps1`, dimensioni 16–256 px): icona **fornita dall'autore del progetto**
+(schermo da proiezione su sfondo arancione), inclusa e ridistribuita con la licenza MIT del progetto. Il colore d'accento dell'interfaccia (`#F35930`) è campionato dallo sfondo dell'icona.

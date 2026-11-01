@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing, System.IO.Compression.FileSystem
 Add-Type @'
 using System; using System.Runtime.InteropServices;
-public static class W { [DllImport("user32.dll")] public static extern bool SetProcessDPIAware(); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+public static class W { [DllImport("user32.dll")] public static extern bool SetProcessDPIAware(); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, int f, int e); [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f); [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint f);
  [DllImport("user32.dll")] public static extern void mouse_event(int f, int dx, int dy, int d, int e); [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; } }
 '@
@@ -18,26 +18,28 @@ $work = Join-Path $env:TEMP 'pp-ui-smoke'; New-Item -ItemType Directory -Force $
 $file = Join-Path $work 'smoke.pptx'; Copy-Item (Join-Path $repo 'tests\corpus\office-made\mixed-realistic-1.pptx') $file -Force
 $AE = [System.Windows.Automation.AutomationElement]; $TS = [System.Windows.Automation.TreeScope]
 function Find($root, $name) { $c = New-Object System.Windows.Automation.PropertyCondition ($AE::NameProperty), $name; $root.FindFirst($TS::Descendants, $c) }
+function Click($e) { $r = $e.Current.BoundingRectangle; [void][W]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); Start-Sleep -Milliseconds 250; [W]::mouse_event(2, 0, 0, 0, 0); [W]::mouse_event(4, 0, 0, 0, 0); Start-Sleep -Milliseconds 700 }
 function Press($root, $name) {
     $e = Find $root $name; if (-not $e) { throw "controllo non trovato: $name" }
     $o = $null
     if ($e.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$o)) { $o.Invoke() }
     elseif ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$o)) { $o.Select() }
-    elseif ($e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$o)) { $r = $e.Current.BoundingRectangle; [void][W]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); Start-Sleep -Milliseconds 200; [W]::mouse_event(2, 0, 0, 0, 0); [W]::mouse_event(4, 0, 0, 0, 0) }  # clic reale: Toggle() di UIA non genera Click
+    elseif ($e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$o)) { Front $h; Start-Sleep -Milliseconds 300; $r = $e.Current.BoundingRectangle; [void][W]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); Start-Sleep -Milliseconds 200; [W]::mouse_event(2, 0, 0, 0, 0); [W]::mouse_event(4, 0, 0, 0, 0) }  # clic reale: Toggle() di UIA non genera Click
     else { throw "nessun pattern per $name" }
     Start-Sleep -Milliseconds 600
 }
+function Front($h) { for ($i = 0; $i -lt 6; $i++) { [void][W]::SetWindowPos($h, [IntPtr]::new(-1), 0, 0, 0, 0, 0x43); [W]::keybd_event(0x12, 0, 0, 0); [W]::keybd_event(0x12, 0, 2, 0); [void][W]::SetForegroundWindow($h); Start-Sleep -Milliseconds 300; if ([W]::GetForegroundWindow() -eq $h) { return } } }   # topmost + foreground (trucco ALT contro il blocco del focus); i clic reali non finiscono su altre finestre
 function Shot($h, $path) {
     $r = New-Object W+RECT; [void][W]::GetWindowRect($h, [ref]$r)
-    $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T)
-    $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size); $g.Dispose(); $bmp.Save($path); $bmp.Dispose()
+    $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T); $g = [System.Drawing.Graphics]::FromImage($bmp); $hdc = $g.GetHdc()
+    [void][W]::PrintWindow($h, $hdc, 2); $g.ReleaseHdc($hdc); $g.Dispose(); $bmp.Save($path); $bmp.Dispose()   # PrintWindow: cattura la SOLA finestra anche se coperta
 }
 $p = Start-Process $exe -ArgumentList $file -PassThru
 $result = [ordered]@{}
 try {
     $deadline = (Get-Date).AddSeconds(20); while (-not $p.MainWindowHandle -or $p.MainWindowHandle -eq 0) { Start-Sleep -Milliseconds 300; $p.Refresh(); if ((Get-Date) -gt $deadline) { throw 'finestra non apparsa' } }
     Start-Sleep -Seconds 2
-    $h = $p.MainWindowHandle; [void][W]::SetForegroundWindow($h)
+    $h = $p.MainWindowHandle; Front $h
     $root = $AE::FromHandle($h)
     Press $root 'Transizioni'; Press $root 'Dissolvenza'
     Press $root 'Home'; Press $root 'Duplica'
@@ -45,22 +47,22 @@ try {
     $items = $root.FindAll($TS::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($AE::ControlTypeProperty), ([System.Windows.Automation.ControlType]::ListItem)))
     $result.thumbnails = $items.Count
     $a = $items[0].Current.BoundingRectangle; $b = $items[2].Current.BoundingRectangle
-    [void][W]::SetForegroundWindow($h); Start-Sleep -Milliseconds 300
+    Front $h; Start-Sleep -Milliseconds 300
     [W]::SetCursorPos([int]($a.X + $a.Width / 2), [int]($a.Y + $a.Height / 2)); Start-Sleep -Milliseconds 200
     [W]::mouse_event(2, 0, 0, 0, 0); Start-Sleep -Milliseconds 200
     for ($i = 1; $i -le 20; $i++) { [W]::SetCursorPos([int]($a.X + $a.Width / 2), [int]($a.Y + $a.Height / 2 + ($b.Y - $a.Y) * $i / 20)); Start-Sleep -Milliseconds 30 }
     Start-Sleep -Milliseconds 300; [W]::mouse_event(4, 0, 0, 0, 0); Start-Sleep -Seconds 1
     if ($Shots) { New-Item -ItemType Directory -Force $Shots | Out-Null }  # la finestra principale non si cattura dallo schermo (ombre/bordi includono altre finestre): vedi screenshot.ps1
-    [void][W]::SetForegroundWindow($h); [System.Windows.Forms.SendKeys]::SendWait('^s'); Start-Sleep -Seconds 2
+    Front $h; Click (Find $root 'Salva'); Start-Sleep -Seconds 2   # clic reale sul pulsante Salva della barra del titolo
     # presentazione a schermo intero
-    [System.Windows.Forms.SendKeys]::SendWait('{F5}'); Start-Sleep -Seconds 2
+    Click (Find $root 'Avvia presentazione'); Start-Sleep -Seconds 3   # clic reale su Avvia presentazione
     $wins = $AE::RootElement.FindAll($TS::Children, (New-Object System.Windows.Automation.PropertyCondition ($AE::ProcessIdProperty), $p.Id))
     $show = $null; foreach ($w in $wins) { if ($w.Current.Name -eq 'Presentazione') { $show = $w } }
     $result.showWindow = [bool]$show
     if ($show) {
         $br = $show.Current.BoundingRectangle; $result.showSize = "$([int]$br.Width)x$([int]$br.Height)"
         if ($Shots) { Shot ([IntPtr]$show.Current.NativeWindowHandle) (Join-Path $Shots 'app-schermo-intero-reale.png') }
-        [System.Windows.Forms.SendKeys]::SendWait('{RIGHT}'); Start-Sleep -Seconds 2
+        Front ([IntPtr]$show.Current.NativeWindowHandle); [System.Windows.Forms.SendKeys]::SendWait('{RIGHT}'); Start-Sleep -Seconds 2
         if ($Shots) { Shot ([IntPtr]$show.Current.NativeWindowHandle) (Join-Path $Shots 'app-schermo-intero-reale-2.png') }
         [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Seconds 1
     }

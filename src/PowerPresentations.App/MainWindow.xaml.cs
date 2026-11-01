@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -25,18 +26,25 @@ public sealed class ThumbItem : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 }
 
+public sealed record SearchHit(string Text, Action Run) { public override string ToString() => Text; }
+
 public partial class MainWindow : Window
 {
     PptxDocument? _doc;
     SlideRenderer? _r;
     int _cur;
     bool _loading;
-    int _editId;
+    int _editId; (int Frame, int Row, int Col)? _editCell;
     bool _cancelEdit;
-    bool _dark = true;
     bool _sorter;
+    bool _showNotes = true;
+    AppSettings _settings = AppSettings.Load();
     readonly ObservableCollection<ThumbItem> _thumbs = new();
+    readonly List<byte[]> _undo = new(), _redo = new();
     Point _dragStart; int _dragIndex = -1;
+    TabItem? _lastTab; TextBlock _backInfo = null!;
+    Button _undoBtn = null!, _redoBtn = null!;
+    Slider _zoom = null!; TextBlock _zoomText = null!;
 
     static readonly (string Name, string Prst)[] Shapes =
     {
@@ -49,15 +57,192 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ApplyTheme(_settings.Dark);
         Thumbs.ItemsSource = _thumbs;
-        View.Selected += id => { UpdateStatus(); };
+        BuildChrome(); BuildRibbon(); BuildStatus(); BuildBackstage();
+        View.Selected += OnSelect;
         View.BoxChanged += OnBoxChanged;
         View.EditRequested += BeginEdit;
         PreviewKeyDown += OnWindowKey;
         Closing += OnClosing;
+        StateChanged += (_, _) => Root.Margin = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
         Thumbs.MouseDoubleClick += OnThumbDoubleClick;
         Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 && f[0].EndsWith(".pptx", StringComparison.OrdinalIgnoreCase) && Confirm()) OpenFile(f[0]); };
         NewDoc();
+    }
+
+    // ---------- tema ----------
+    public void ApplyTheme(bool dark)
+    {
+        var r = Application.Current.Resources;
+        void Set(string k, string hex) => r[k] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        if (dark) { Set("BgBrush", "#0e0e0e"); Set("PanelBrush", "#161616"); Set("FgBrush", "#f2ece1"); Set("MutedBrush", "#9a948a"); Set("LineBrush", "#2e2e2e"); Set("CanvasBrush", "#0e0e0e"); Set("HoverBrush", "#222222"); Set("RibbonBrush", "#161616"); }
+        else { Set("BgBrush", "#eee8e6"); Set("PanelBrush", "#ffffff"); Set("FgBrush", "#1f1f1f"); Set("MutedBrush", "#616161"); Set("LineBrush", "#d6cfcd"); Set("CanvasBrush", "#eee8e6"); Set("HoverBrush", "#e4dcda"); Set("RibbonBrush", "#fbf9f8"); }
+        View?.InvalidateVisual();
+    }
+
+    void SetDark(bool dark)
+    {
+        _settings.Dark = dark; _settings.Save(); ApplyTheme(dark);
+    }
+
+    // ---------- barra del titolo, ribbon, stato ----------
+    void BuildChrome()
+    {
+        SearchIcon.Content = Icons.Make("search", 16);
+        var ico = new Image { Source = Icon, Width = 20, Height = 20, Margin = new Thickness(0, 0, 8, 0) };
+        QuickBar.Children.Add(ico);
+        Button Q(string name, string icon, Action run) { var b = new Button { Style = (Style)FindResource("RibbonButton"), Width = 32, Height = 30, Padding = new Thickness(0), Content = Icons.Make(icon, 18), ToolTip = name }; AutomationProperties.SetName(b, name); b.Click += (_, _) => run(); QuickBar.Children.Add(b); return b; }
+        Q("Salva", "save", () => DoSave(false));
+        _undoBtn = Q("Annulla", "undo", DoUndo); _redoBtn = Q("Ripristina azione", "redo", DoRedo);
+        Q("Avvia presentazione", "play-here", () => StartShow(0, false));
+        UpdateQuick();
+        Button C(string name, string icon, Action run, bool close = false)
+        {
+            var b = new Button { Style = (Style)FindResource("RibbonButton"), Width = 46, Height = 40, Padding = new Thickness(0), Content = Icons.Make(icon, 13), ToolTip = name };
+            AutomationProperties.SetName(b, name); b.Click += (_, _) => run(); CaptionButtons.Children.Add(b); return b;
+        }
+        C("Riduci a icona", "min", () => WindowState = WindowState.Minimized);
+        C("Ingrandisci/Ripristina", "max", () => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
+        C("Chiudi", "close", Close);
+
+        var collapse = new Button { Style = (Style)FindResource("RibbonButton"), Width = 26, Height = 22, Padding = new Thickness(0), Content = Icons.Make("dir-u", 12), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 8, 14, 0), ToolTip = "Comprimi il ribbon" };
+        AutomationProperties.SetName(collapse, "Comprimi il ribbon");
+        collapse.Click += (_, _) =>
+        {
+            Ribbon.ApplyTemplate();
+            if (Ribbon.Template.FindName("RibbonBody", Ribbon) is Border b) { bool vis = b.Visibility == Visibility.Visible; b.Visibility = vis ? Visibility.Collapsed : Visibility.Visible; collapse.Content = Icons.Make(vis ? "dir-d" : "dir-u", 12); }
+        };
+        Grid.SetRow(collapse, 1); Root.Children.Add(collapse);
+    }
+
+    void UpdateQuick() { if (_undoBtn != null) { _undoBtn.IsEnabled = _undo.Count > 0; _redoBtn.IsEnabled = _redo.Count > 0; } }
+
+    void BuildStatus()
+    {
+        Button B(string name, string icon, Action run) { var b = new Button { Style = (Style)FindResource("RibbonButton"), Width = 30, Height = 22, Padding = new Thickness(0), Content = Icons.Make(icon, 14), ToolTip = name }; AutomationProperties.SetName(b, name); b.Click += (_, _) => run(); StatusRight.Children.Add(b); return b; }
+        var notes = new ToggleButton { Content = "Note", IsChecked = true, FontSize = 12, Padding = new Thickness(8, 1, 8, 1) }; AutomationProperties.SetName(notes, "Note (barra di stato)");
+        notes.Click += (_, _) => SetNotesVisible(notes.IsChecked == true); StatusRight.Children.Add(notes);
+        B("Normale", "normal", () => SetSorter(false)); B("Sequenza diapositive", "sorter", () => SetSorter(true)); B("Presentazione", "play-here", () => StartShow(_cur, false));
+        B("Riduci zoom", "min", () => SetZoom((int)_zoom.Value - 10));
+        _zoom = new Slider { Minimum = 25, Maximum = 200, Value = 100, Width = 130, VerticalAlignment = VerticalAlignment.Center }; AutomationProperties.SetName(_zoom, "Zoom");
+        _zoom.ValueChanged += (_, e) => { View.Zoom = e.NewValue / 100; _zoomText.Text = $"{(int)e.NewValue}%"; };
+        StatusRight.Children.Add(_zoom);
+        B("Aumenta zoom", "slide-new", () => SetZoom((int)_zoom.Value + 10));
+        _zoomText = new TextBlock { Text = "100%", Width = 42, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, FontSize = 12, Margin = new Thickness(4, 0, 4, 0) }; StatusRight.Children.Add(_zoomText);
+        B("Adatta alla finestra", "fit", () => SetZoom(100));
+    }
+
+    void SetZoom(int v) => _zoom.Value = Math.Clamp(v, 25, 200);
+
+    void SetNotesVisible(bool on)
+    {
+        _showNotes = on; NotesRow.Height = on ? new GridLength(110) : new GridLength(0); NotesArea.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (_notesCheck != null) { _loading = true; _notesCheck.IsChecked = on; _loading = false; }
+        foreach (var t in StatusRight.Children.OfType<ToggleButton>()) t.IsChecked = on;
+    }
+
+    void OnRibbonTab(object s, SelectionChangedEventArgs e)
+    {
+        if (e.OriginalSource != Ribbon || Ribbon.SelectedItem is not TabItem t) return;
+        if ((t.Header as string) == "File") { ShowBackstage(true); return; }
+        ShowBackstage(false); _lastTab = t;
+        Ribbon.ApplyTemplate();
+        if (Ribbon.Template.FindName("RibbonBody", Ribbon) is Border b)
+        {
+            bool powers = (t.Header as string) == "Powers";
+            b.SetResourceReference(Border.BorderBrushProperty, powers ? "PowersBrush" : "LineBrush"); b.BorderThickness = new Thickness(powers ? 2 : 1);
+        }
+    }
+
+    // ---------- scheda File a tutta pagina ----------
+    void BuildBackstage()
+    {
+        Backstage.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) }); Backstage.ColumnDefinitions.Add(new ColumnDefinition());
+        var left = new StackPanel { Margin = new Thickness(12, 12, 8, 0) };
+        Button M(string label, string icon, Action? run)
+        {
+            var b = new Button { Style = (Style)FindResource("RibbonButton"), Height = 40, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 0, 8, 0) };
+            var sp = new StackPanel { Orientation = Orientation.Horizontal }; sp.Children.Add(Icons.Make(icon, 20)); sp.Children.Add(new TextBlock { Text = label, FontSize = 14, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+            b.Content = sp; AutomationProperties.SetName(b, label);
+            if (run == null) { b.IsEnabled = false; b.ToolTip = NotYet; } else { b.Click += (_, _) => { ShowBackstage(false); Ribbon.SelectedItem = _lastTab ?? _homeTab; run(); }; }
+            left.Children.Add(b); return b;
+        }
+        var back = M("Indietro", "back", null); back.IsEnabled = true; back.ToolTip = null;
+        back.Click += (_, _) => { ShowBackstage(false); Ribbon.SelectedItem = _lastTab ?? _homeTab; };
+        M("Nuovo", "new", () => OnNew(this, new RoutedEventArgs())); M("Apri", "open", () => OnOpen(this, new RoutedEventArgs())); M("Salva", "save", () => DoSave(false)); M("Salva con nome", "save", () => DoSave(true));
+        M("Esporta come PDF", "pdf", () => OnExportPdf(this, new RoutedEventArgs())); M("Stampa", "generic", null);
+        Backstage.Children.Add(left);
+        var info = new StackPanel { Margin = new Thickness(40, 40, 0, 0) }; Grid.SetColumn(info, 1);
+        info.Children.Add(new TextBlock { Text = "Informazioni", FontSize = 28 });
+        _backInfo = new TextBlock { FontSize = 14, Margin = new Thickness(0, 14, 0, 0) }; info.Children.Add(_backInfo);
+        Backstage.Children.Add(info);
+    }
+
+    void ShowBackstage(bool on)
+    {
+        Backstage.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (on && Backstage.Children.OfType<StackPanel>().Last().Children.OfType<TextBlock>().Last() is { } t)
+            t.Text = $"{(_doc?.FilePath ?? "Presentazione non ancora salvata")}\nDiapositive: {_doc?.Slides.Count}";
+    }
+
+    // ---------- ricerca ----------
+    void OnSearchFocus(object s, RoutedEventArgs e) { if (Search.Text.Length > 0) SearchPopup.IsOpen = true; }
+
+    void OnSearchChanged(object s, TextChangedEventArgs e)
+    {
+        SearchHint.Visibility = Search.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var q = Search.Text.Trim();
+        if (q.Length == 0 || _doc == null) { SearchPopup.IsOpen = false; return; }
+        var hits = new List<SearchHit>();
+        foreach (var (label, run) in _cmds.DistinctBy(c => c.Label).Where(c => c.Label.Contains(q, StringComparison.CurrentCultureIgnoreCase)).Take(8)) hits.Add(new SearchHit("Comando: " + label, run));
+        if (q.Length >= 2)
+            for (int i = 0; i < _doc.Slides.Count && hits.Count < 14; i++)
+            {
+                var txt = string.Join(" ", _r!.Render(i).Items.OfType<TextItem>().Select(t => t.Text));
+                int idx = txt.IndexOf(q, StringComparison.CurrentCultureIgnoreCase); if (idx < 0) continue;
+                int n = i; var snip = txt.Substring(Math.Max(0, idx - 15), Math.Min(txt.Length - Math.Max(0, idx - 15), 50));
+                hits.Add(new SearchHit($"Diapositiva {i + 1}: …{snip}…", () => { SetSorter(false); ShowSlide(n); }));
+            }
+        if (hits.Count == 0) hits.Add(new SearchHit("Nessun risultato", () => { }));
+        SearchList.ItemsSource = hits; SearchPopup.IsOpen = true;
+    }
+
+    void RunHit(SearchHit? h) { if (h == null) return; SearchPopup.IsOpen = false; Search.Text = ""; h.Run(); }
+    void OnSearchPick(object s, MouseButtonEventArgs e) { if (SearchList.SelectedItem is SearchHit h) RunHit(h); }
+    void OnSearchKey(object s, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { RunHit((SearchList.SelectedItem as SearchHit) ?? (SearchList.Items.Count > 0 ? SearchList.Items[0] as SearchHit : null)); e.Handled = true; }
+        else if (e.Key == Key.Down && SearchList.Items.Count > 0) { SearchList.SelectedIndex = Math.Min(SearchList.SelectedIndex + 1, SearchList.Items.Count - 1); e.Handled = true; }
+        else if (e.Key == Key.Up && SearchList.Items.Count > 0) { SearchList.SelectedIndex = Math.Max(SearchList.SelectedIndex - 1, 0); e.Handled = true; }
+        else if (e.Key == Key.Escape) { SearchPopup.IsOpen = false; Search.Text = ""; View.Focus(); e.Handled = true; }
+    }
+
+    // ---------- annulla / ripristina ----------
+    void Snap()
+    {
+        if (_doc == null) return;
+        _undo.Add(_doc.Snapshot()); if (_undo.Count > 40) _undo.RemoveAt(0);
+        _redo.Clear(); UpdateQuick();
+    }
+
+    void ApplyState(byte[] state)
+    {
+        _doc!.Restore(state); _r = new SlideRenderer(_doc); _cur = Math.Min(_cur, _doc.Slides.Count - 1);
+        _editId = 0; _editCell = null; Editor.Visibility = Visibility.Collapsed;
+        RebuildThumbs(); ShowSlide(_cur); UpdateTitle(); UpdateQuick();
+    }
+
+    void DoUndo()
+    {
+        if (_doc == null || _undo.Count == 0) return;
+        CommitEdit(); var s = _undo[^1]; _undo.RemoveAt(_undo.Count - 1); _redo.Add(_doc.Snapshot()); ApplyState(s);
+    }
+
+    void DoRedo()
+    {
+        if (_doc == null || _redo.Count == 0) return;
+        CommitEdit(); var s = _redo[^1]; _redo.RemoveAt(_redo.Count - 1); _undo.Add(_doc.Snapshot()); ApplyState(s);
     }
 
     // ---------- documento ----------
@@ -75,7 +260,8 @@ public partial class MainWindow : Window
 
     void SetDoc(PptxDocument d)
     {
-        _doc?.Dispose(); _doc = d; _r = new SlideRenderer(d); _cur = 0; _editId = 0; Editor.Visibility = Visibility.Collapsed;
+        _doc?.Dispose(); _doc = d; _r = new SlideRenderer(d); _cur = 0; _editId = 0; _editCell = null; Editor.Visibility = Visibility.Collapsed;
+        _undo.Clear(); _redo.Clear(); UpdateQuick();
         RebuildThumbs(); ShowSlide(0); UpdateTitle();
     }
 
@@ -89,10 +275,43 @@ public partial class MainWindow : Window
 
     void OnClosing(object? s, CancelEventArgs e) { CommitEdit(); SaveNotes(); if (!Confirm()) e.Cancel = true; else _doc?.Dispose(); }
 
-    void UpdateTitle() => Title = $"{(_doc?.FilePath is { } p ? Path.GetFileName(p) : "Senza titolo")}{(_doc?.Dirty == true ? " *" : "")} — PowerPresentations";
+    void UpdateTitle()
+    {
+        var t = $"{(_doc?.FilePath is { } p ? Path.GetFileName(p) : "Presentazione1")}{(_doc?.Dirty == true ? " *" : "")} — PowerPresentations";
+        Title = t; TitleText.Text = t;
+    }
 
     void UpdateStatus() =>
-        Status.Text = _doc == null ? "" : $"Slide {_cur + 1} di {_doc.Slides.Count}" + (View.SelectedId != 0 ? $"   ·   forma {View.SelectedId}" : "") + (_doc.IsHidden(_cur) ? "   ·   nascosta" : "");
+        Status.Text = _doc == null ? "" : $"Diapositiva {_cur + 1} di {_doc.Slides.Count}" + (View.SelectedId != 0 ? $"   ·   forma {View.SelectedId}" : "") + (_doc.IsHidden(_cur) ? "   ·   nascosta" : "");
+
+    // ---------- selezione / scheda tabella ----------
+    bool IsTable(int id) => id != 0 && View.List != null && View.List.TableCells.Any(c => c.FrameId == id);
+
+    void OnSelect(int id)
+    {
+        UpdateStatus();
+        bool table = IsTable(id);
+        _tableTab.Visibility = table ? Visibility.Visible : Visibility.Collapsed;
+        if (!table && Ribbon.SelectedItem == _tableTab) Ribbon.SelectedItem = _homeTab;
+        if (table && _doc != null)
+        {
+            _loading = true;
+            foreach (var c in _tableChecks) c.IsChecked = _doc.GetTableFlag(_cur, id, FlagOf(c));
+            _loading = false;
+        }
+    }
+
+    static string FlagOf(CheckBox c) => AutomationProperties.GetName(c) switch
+    {
+        "Riga di intestazione" => "firstRow", "Riga Totale" => "lastRow", "Righe alternate evidenziate" => "bandRow",
+        "Prima colonna" => "firstCol", "Ultima colonna" => "lastCol", _ => "bandCol"
+    };
+
+    void SetTableFlag(string flag, bool on)
+    {
+        int id = View.SelectedId; if (_doc == null || !IsTable(id)) return;
+        Snap(); _doc.SetTableFlag(_cur, id, flag, on); RefreshCurrent(); View.SelectedId = id;
+    }
 
     // ---------- miniature ----------
     ThumbItem MakeThumb(int i)
@@ -123,7 +342,7 @@ public partial class MainWindow : Window
         if (_doc == null || _doc.Slides.Count == 0) return;
         CommitEdit();
         _cur = Math.Clamp(i, 0, _doc.Slides.Count - 1);
-        View.SelectedId = 0; View.List = _r!.Render(_cur);
+        View.SelectedId = 0; View.List = _r!.Render(_cur); OnSelect(0);
         Notes.Text = _doc.GetNotes(_cur);
         UpdateTransUi(); UpdateStatus();
         if (Thumbs.SelectedIndex != _cur) { _loading = true; Thumbs.SelectedIndex = _cur; _loading = false; }
@@ -131,7 +350,6 @@ public partial class MainWindow : Window
 
     void OnThumbSelected(object s, SelectionChangedEventArgs e) { if (!_loading && Thumbs.SelectedIndex >= 0) { SaveNotes(); ShowSlide(Thumbs.SelectedIndex); } }
 
-    // riordino con drag & drop: modifica solo sldIdLst
     void OnThumbMouseDown(object s, MouseButtonEventArgs e)
     {
         _dragStart = e.GetPosition(Thumbs);
@@ -157,7 +375,7 @@ public partial class MainWindow : Window
         int to = _thumbs.Count - 1;
         if (e.OriginalSource is DependencyObject o && ItemsControl.ContainerFromElement(Thumbs, o) is ListBoxItem c) to = Thumbs.ItemContainerGenerator.IndexFromContainer(c);
         if (to < 0 || to == from) return;
-        SaveNotes();
+        SaveNotes(); Snap();
         _doc.MoveSlide(from, to); _cur = to; RebuildThumbs(); ShowSlide(to); UpdateTitle();
     }
 
@@ -165,13 +383,13 @@ public partial class MainWindow : Window
 
     void OnThumbKey(object s, KeyEventArgs e) { if (e.Key == Key.Delete) { OnDeleteSlide(s, e); e.Handled = true; } }
 
-    // vista Sequenza diapositive: le miniature occupano tutta l'area (griglia), il riordino con drag & drop funziona uguale
     void SetSorter(bool on)
     {
         if (_doc == null) return;
         CommitEdit(); SaveNotes(); _sorter = on;
         Grid.SetColumnSpan(Thumbs, on ? 2 : 1); Grid.SetRowSpan(Thumbs, 2);
-        EditArea.Visibility = NotesArea.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        EditArea.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        NotesArea.Visibility = !on && _showNotes ? Visibility.Visible : Visibility.Collapsed;
         var panel = on ? new FrameworkElementFactory(typeof(WrapPanel)) : new FrameworkElementFactory(typeof(VirtualizingStackPanel));
         Thumbs.ItemsPanel = new ItemsPanelTemplate(panel);
         RebuildThumbs();
@@ -189,9 +407,6 @@ public partial class MainWindow : Window
         var dlg = new OpenFileDialog { Filter = "Presentazioni (*.pptx)|*.pptx", Title = "Apri presentazione" };
         if (dlg.ShowDialog(this) == true) OpenFile(dlg.FileName);
     }
-
-    void OnSave(object s, RoutedEventArgs e) => DoSave(false);
-    void OnSaveAs(object s, RoutedEventArgs e) => DoSave(true);
 
     bool DoSave(bool saveAs)
     {
@@ -230,50 +445,72 @@ public partial class MainWindow : Window
         var lays = _doc.Layouts;
         int k = ListPicker.Pick(this, "Layout della nuova slide", lays.Select(l => l.Name));
         if (k < 0) return;
-        SaveNotes();
+        SaveNotes(); Snap();
         _cur = _doc.AddSlide(lays[k], _cur); RebuildThumbs(); ShowSlide(_cur); UpdateTitle();
     }
 
-    void OnDuplicate(object s, RoutedEventArgs e) { if (_doc == null) return; SaveNotes(); _cur = _doc.DuplicateSlide(_cur); RebuildThumbs(); ShowSlide(_cur); UpdateTitle(); }
+    void OnDuplicate(object s, RoutedEventArgs e) { if (_doc == null) return; SaveNotes(); Snap(); _cur = _doc.DuplicateSlide(_cur); RebuildThumbs(); ShowSlide(_cur); UpdateTitle(); }
 
     void OnDeleteSlide(object s, RoutedEventArgs e)
     {
         if (_doc == null || _doc.Slides.Count <= 1) { Status.Text = "Non si può eliminare l'ultima slide."; return; }
-        _doc.DeleteSlide(_cur); _cur = Math.Min(_cur, _doc.Slides.Count - 1); RebuildThumbs(); ShowSlide(_cur); UpdateTitle();
+        Snap(); _doc.DeleteSlide(_cur); _cur = Math.Min(_cur, _doc.Slides.Count - 1); RebuildThumbs(); ShowSlide(_cur); UpdateTitle();
     }
 
-    void OnToggleHidden(object s, RoutedEventArgs e) { if (_doc == null) return; _doc.SetHidden(_cur, !_doc.IsHidden(_cur)); RefreshCurrent(); UpdateStatus(); }
+    void OnToggleHidden(object s, RoutedEventArgs e) { if (_doc == null) return; Snap(); _doc.SetHidden(_cur, !_doc.IsHidden(_cur)); RefreshCurrent(); UpdateStatus(); }
 
     void SaveNotes()
     {
         if (_doc == null || _cur >= _doc.Slides.Count) return;
-        if (Notes.Text != _doc.GetNotes(_cur)) { _doc.SetNotes(_cur, Notes.Text); UpdateTitle(); }
+        if (Notes.Text != _doc.GetNotes(_cur)) { Snap(); _doc.SetNotes(_cur, Notes.Text); UpdateTitle(); }
     }
 
     void OnNotesLost(object s, RoutedEventArgs e) => SaveNotes();
+    void OnNotesChanged(object s, TextChangedEventArgs e) => NotesHint.Visibility = Notes.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
 
     // ---------- modifica testo e oggetti ----------
-    void BeginEdit(int id)
+    void BeginEdit(int id, Point slidePt)
     {
         if (_doc == null) return;
         var hit = View.List!.Hits.FirstOrDefault(h => h.Id == id); if (hit.Id == 0) return;
-        _editId = id; _cancelEdit = false;
-        var r = View.ToView(hit.Box);
+        _editId = id; _cancelEdit = false; _editCell = null;
+        RectD box = hit.Box; string text;
+        TextItem? first;
+        var cell = View.List.TableCells.Where(c => c.FrameId == id && slidePt.X >= c.Box.X && slidePt.X <= c.Box.X + c.Box.W && slidePt.Y >= c.Box.Y && slidePt.Y <= c.Box.Y + c.Box.H).Select(c => ((int, int, int, RectD)?)(c.FrameId, c.Row, c.Col, c.Box)).FirstOrDefault();
+        if (IsTable(id))
+        {
+            if (cell == null) { _editId = 0; return; }
+            _editCell = (id, cell.Value.Item2, cell.Value.Item3); box = cell.Value.Item4; text = _doc.GetCellText(_cur, id, cell.Value.Item2, cell.Value.Item3);
+            first = View.List.Items.OfType<TextItem>().FirstOrDefault(t => t.ShapeId == id);
+        }
+        else { text = _doc.GetShapeText(_cur, id); first = View.List.Items.OfType<TextItem>().FirstOrDefault(t => t.ShapeId == id); }
+        var r = View.ToView(box);
         Editor.Margin = new Thickness(r.X, r.Y, 0, 0); Editor.Width = Math.Max(80, r.Width); Editor.MinHeight = Math.Max(28, r.Height);
-        var first = View.List.Items.OfType<TextItem>().FirstOrDefault(t => t.ShapeId == id);
-        Editor.FontSize = first != null ? Math.Max(10, first.Size * (r.Width / hit.Box.W)) : 14;
+        Editor.FontSize = first != null ? Math.Max(10, first.Size * (r.Width / box.W)) : 14;
         Editor.FontFamily = first != null ? new FontFamily(first.Font) : new FontFamily("Segoe UI");
-        Editor.Text = _doc.GetShapeText(_cur, id);
+        Editor.Text = text;
         Editor.Visibility = Visibility.Visible; Editor.Focus(); Editor.SelectAll();
     }
+
+    void BeginEdit(int id) => BeginEdit(id, new Point(-1, -1));
 
     void CommitEdit()
     {
         if (_editId == 0 || _doc == null) return;
-        int id = _editId; _editId = 0;
+        int id = _editId; var cell = _editCell; _editId = 0; _editCell = null;
         var text = Editor.Text; Editor.Visibility = Visibility.Collapsed;
-        if (_cancelEdit || text == _doc.GetShapeText(_cur, id)) return;
-        _doc.SetShapeText(_cur, id, text); RefreshCurrent();
+        if (_cancelEdit) return;
+        if (cell is { } c)
+        {
+            if (text == _doc.GetCellText(_cur, c.Frame, c.Row, c.Col)) return;
+            Snap(); _doc.SetCellText(_cur, c.Frame, c.Row, c.Col, text);
+        }
+        else
+        {
+            if (text == _doc.GetShapeText(_cur, id)) return;
+            Snap(); _doc.SetShapeText(_cur, id, text);
+        }
+        RefreshCurrent(); View.SelectedId = id;
     }
 
     void OnEditorLost(object s, RoutedEventArgs e) => CommitEdit();
@@ -286,8 +523,8 @@ public partial class MainWindow : Window
     void OnBoxChanged(int id, RectD b)
     {
         if (_doc == null) return;
-        try { _doc.SetShapeBox(_cur, id, b.X, b.Y, b.W, b.H); RefreshCurrent(); }
-        catch (Exception ex) when (ex is KeyNotFoundException or NotSupportedException) { Status.Text = ex.Message; }
+        try { Snap(); _doc.SetShapeBox(_cur, id, b.X, b.Y, b.W, b.H); RefreshCurrent(); View.SelectedId = id; }
+        catch (Exception ex) when (ex is KeyNotFoundException or NotSupportedException) { if (_undo.Count > 0) _undo.RemoveAt(_undo.Count - 1); Status.Text = ex.Message; }
     }
 
     TextItem? FirstText(int id) => View.List?.Items.OfType<TextItem>().FirstOrDefault(t => t.ShapeId == id);
@@ -297,7 +534,7 @@ public partial class MainWindow : Window
         int id = View.SelectedId; if (_doc == null || id == 0) { Status.Text = "Seleziona prima una forma con testo."; return; }
         var t = FirstText(id); if (t == null && color == null) { Status.Text = "La forma selezionata non contiene testo."; return; }
         var (b, i, u, sz) = t != null ? f(t) : (null, null, null, null);
-        _doc.SetFormat(_cur, id, b, i, u, sz, color); RefreshCurrent();
+        Snap(); _doc.SetFormat(_cur, id, b, i, u, sz, color); RefreshCurrent(); View.SelectedId = id;
     }
 
     bool HasUnderline(int id) => View.List!.Items.OfType<PathItem>().Any(p => p.ShapeId == id && p.Fill == null && p.Segs.Count == 2 && p.Stroke != null && p.Stroke.Width < 3 && FirstText(id) is { } t && p.Stroke.Color == t.Color);
@@ -307,18 +544,24 @@ public partial class MainWindow : Window
     void OnUnderline(object s, RoutedEventArgs e) => Format(t => (null, null, !HasUnderline(t.ShapeId), null));
     void OnSizeUp(object s, RoutedEventArgs e) => Format(t => (null, null, null, Math.Round(t.Size) + 2));
     void OnSizeDown(object s, RoutedEventArgs e) => Format(t => (null, null, null, Math.Max(6, Math.Round(t.Size) - 2)));
-    void OnColor(object s, RoutedEventArgs e) => Format(_ => (null, null, null, null), (string)((FrameworkElement)s).Tag);
+    void FormatColor(string hex) => Format(_ => (null, null, null, null), hex);
+
+    void Align(string algn)
+    {
+        int id = View.SelectedId; if (_doc == null || id == 0 || FirstText(id) == null) { Status.Text = "Seleziona prima una forma con testo."; return; }
+        Snap(); _doc.SetAlignment(_cur, id, algn); RefreshCurrent(); View.SelectedId = id;
+    }
 
     void OnDeleteShape(object s, RoutedEventArgs e)
     {
         if (_doc == null || View.SelectedId == 0) return;
-        _doc.DeleteShape(_cur, View.SelectedId); View.SelectedId = 0; RefreshCurrent();
+        Snap(); _doc.DeleteShape(_cur, View.SelectedId); View.SelectedId = 0; RefreshCurrent(); OnSelect(0);
     }
 
     void OnInsertText(object s, RoutedEventArgs e)
     {
         if (_doc == null) return;
-        var (w, h) = _doc.SlideSize;
+        var (w, h) = _doc.SlideSize; Snap();
         int id = _doc.AddTextBox(_cur, w / 2 - 150, h / 2 - 20, 300, 40, "Testo");
         RefreshCurrent(); View.SelectedId = id; UpdateLayout(); BeginEdit(id);
     }
@@ -327,7 +570,7 @@ public partial class MainWindow : Window
     {
         if (_doc == null) return;
         int k = ListPicker.Pick(this, "Inserisci forma", Shapes.Select(x => x.Name)); if (k < 0) return;
-        var (w, h) = _doc.SlideSize;
+        var (w, h) = _doc.SlideSize; Snap();
         int id = _doc.AddShape(_cur, Shapes[k].Prst, w / 2 - 100, h / 2 - 60, 200, 120);
         RefreshCurrent(); View.SelectedId = id;
     }
@@ -344,6 +587,7 @@ public partial class MainWindow : Window
             double pw = fr.PixelWidth * 72.0 / (fr.DpiX > 0 ? fr.DpiX : 96), ph = fr.PixelHeight * 72.0 / (fr.DpiY > 0 ? fr.DpiY : 96);
             var (sw, sh) = _doc.SlideSize; double k = Math.Min(1, Math.Min(sw * 0.6 / pw, sh * 0.6 / ph));
             double w = pw * k, h = ph * k;
+            Snap();
             int id = _doc.AddPicture(_cur, data, (sw - w) / 2, (sh - h) / 2, w, h, Path.GetFileNameWithoutExtension(dlg.FileName));
             RefreshCurrent(); View.SelectedId = id;
         }
@@ -354,9 +598,9 @@ public partial class MainWindow : Window
     void OnInsertTable(object s, RoutedEventArgs e)
     {
         if (_doc == null) return;
-        var (w, h) = _doc.SlideSize;
+        var (w, h) = _doc.SlideSize; Snap();
         int id = _doc.AddTable(_cur, 3, 3, w * 0.15, h * 0.35, w * 0.7);
-        RefreshCurrent(); View.SelectedId = id;
+        RefreshCurrent(); View.SelectedId = id; OnSelect(id);
     }
 
     // ---------- transizioni ----------
@@ -364,28 +608,44 @@ public partial class MainWindow : Window
     {
         if (_doc == null) return;
         var t = _doc.GetTransition(_cur);
-        foreach (var b in TransPanel.Children.OfType<ToggleButton>()) b.IsChecked = (string)b.Tag == t.Kind;
-        TransInfo.Text = t.Kind == "none" ? "" : $"{t.Kind} · direzione {t.Dir ?? "—"} · velocità {t.Speed}";
+        foreach (var b in _transButtons) b.IsChecked = AutomationProperties.GetName(b) == KindLabel(t.Kind);
     }
 
-    void OnTransition(object s, RoutedEventArgs e)
+    static string KindLabel(string kind) => kind switch { "fade" => "Dissolvenza", "push" => "Spingi", "wipe" => "Cancella", "cover" => "Copri", "pull" => "Scopri", _ => "Nessuna" };
+
+    void SetTrans(string kind)
     {
         if (_doc == null) return;
-        var kind = (string)((FrameworkElement)s).Tag; var old = _doc.GetTransition(_cur);
+        var old = _doc.GetTransition(_cur); Snap();
         _doc.SetTransition(_cur, kind, kind is "push" or "wipe" or "cover" or "pull" ? old.Dir ?? "l" : null, old.Speed);
         UpdateTransUi(); UpdateTitle();
     }
 
-    void OnTransDir(object s, RoutedEventArgs e)
+    void SetTransDir(string dir)
     {
         if (_doc == null) return; var t = _doc.GetTransition(_cur);
-        if (t.Kind is "push" or "wipe" or "cover" or "pull") { _doc.SetTransition(_cur, t.Kind, (string)((FrameworkElement)s).Tag, t.Speed); UpdateTransUi(); UpdateTitle(); }
+        if (t.Kind is "push" or "wipe" or "cover" or "pull") { Snap(); _doc.SetTransition(_cur, t.Kind, dir, t.Speed); UpdateTransUi(); UpdateTitle(); }
+        else Status.Text = "Scegli prima una transizione con direzione (Spingi, Cancella, Copri, Scopri).";
     }
 
-    void OnTransSpeed(object s, RoutedEventArgs e)
+    void SetTransSpeed(string speed)
     {
         if (_doc == null) return; var t = _doc.GetTransition(_cur);
-        if (t.Kind != "none") { _doc.SetTransition(_cur, t.Kind, t.Dir, (string)((FrameworkElement)s).Tag); UpdateTransUi(); UpdateTitle(); }
+        if (t.Kind != "none") { Snap(); _doc.SetTransition(_cur, t.Kind, t.Dir, speed); UpdateTransUi(); UpdateTitle(); }
+        else Status.Text = "Scegli prima una transizione.";
+    }
+
+    /// <summary>Anteprima: mostra la slide precedente e passa alla corrente con la sua transizione.</summary>
+    void OnTransPreview()
+    {
+        if (_doc == null || _cur == 0) { Status.Text = "L'anteprima richiede una slide precedente."; return; }
+        CommitEdit(); SaveNotes();
+        var c = new ShowController(_doc, _r!, _cur - 1);
+        var show = new PresentationWindow(c) { WindowStyle = WindowStyle.SingleBorderWindow, ResizeMode = ResizeMode.CanResize, Width = 960, Height = 560, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this, Cursor = Cursors.Arrow };
+        show.Show();
+        var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        t.Tick += (_, _) => { t.Stop(); c.Next(); var t2 = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.2) }; t2.Tick += (_, _) => { t2.Stop(); show.Close(); }; t2.Start(); };
+        t.Start();
     }
 
     // ---------- presentazione ----------
@@ -413,7 +673,6 @@ public partial class MainWindow : Window
             pv = new PresenterWindow(c);
             if (secondary == null)
             {
-                // un solo schermo: vista relatore a sinistra, presentazione in finestra a destra
                 pv.WindowStartupLocation = WindowStartupLocation.Manual; pv.Left = 10; pv.Top = 10; pv.Width = 1000; pv.Height = 700;
                 show.WindowStyle = WindowStyle.SingleBorderWindow; show.ResizeMode = ResizeMode.CanResize; show.Cursor = Cursors.Arrow;
                 show.WindowStartupLocation = WindowStartupLocation.Manual; show.Left = 1030; show.Top = 60; show.Width = 800; show.Height = 480;
@@ -425,24 +684,17 @@ public partial class MainWindow : Window
         return (show, pv);
     }
 
-    // ---------- tema e scorciatoie ----------
-    void OnTheme(object s, RoutedEventArgs e)
-    {
-        _dark = !_dark;
-        var r = Application.Current.Resources;
-        void Set(string k, string hex) => r[k] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
-        if (_dark) { Set("BgBrush", "#0e0e0e"); Set("PanelBrush", "#161616"); Set("FgBrush", "#f2ece1"); Set("MutedBrush", "#9a948a"); Set("LineBrush", "#2e2e2e"); Set("CanvasBrush", "#050505"); Set("HoverBrush", "#222222"); }
-        else { Set("BgBrush", "#f4f1ec"); Set("PanelBrush", "#ffffff"); Set("FgBrush", "#1a1a1a"); Set("MutedBrush", "#6b665e"); Set("LineBrush", "#d6d0c6"); Set("CanvasBrush", "#dcd8d0"); Set("HoverBrush", "#ece7de"); }
-        View.InvalidateVisual();
-    }
-
     void OnWindowKey(object s, KeyEventArgs e)
     {
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+        bool typing = Keyboard.FocusedElement is TextBox;
         if (e.Key == Key.F5 && _doc != null) { StartShow(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? _cur : 0, false); e.Handled = true; }
         else if (ctrl && e.Key == Key.S) { DoSave(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)); e.Handled = true; }
         else if (ctrl && e.Key == Key.O) { OnOpen(this, e); e.Handled = true; }
         else if (ctrl && e.Key == Key.N) { OnNew(this, e); e.Handled = true; }
+        else if (ctrl && e.Key == Key.Z && !typing) { DoUndo(); e.Handled = true; }
+        else if (ctrl && e.Key == Key.Y && !typing) { DoRedo(); e.Handled = true; }
+        else if (ctrl && e.Key == Key.E) { Search.Focus(); e.Handled = true; }
         else if (e.Key == Key.Delete && View.IsKeyboardFocused && View.SelectedId != 0) { OnDeleteShape(this, e); e.Handled = true; }
         else if (View.IsKeyboardFocused && e.Key == Key.PageDown && _doc != null) { ShowSlide(_cur + 1); e.Handled = true; }
         else if (View.IsKeyboardFocused && e.Key == Key.PageUp && _doc != null) { ShowSlide(_cur - 1); e.Handled = true; }
@@ -478,9 +730,17 @@ public partial class MainWindow : Window
                     t2.Start(); wait = true; return;
                 }
                 if (mode == "edit") { var h = View.List!.Hits.FirstOrDefault(x => x.HasText); if (h.Id != 0) { View.SelectedId = h.Id; BeginEdit(h.Id); UpdateLayout(); } }
-                if (mode == "light") OnTheme(this, new RoutedEventArgs());
+                if (mode == "light") { _darkSwitch.IsChecked = false; }
+                if (mode == "powers" || mode == "powers-light") { if (mode == "powers-light") _darkSwitch.IsChecked = false; Ribbon.SelectedItem = Ribbon.Items.OfType<TabItem>().First(i => (string)i.Header == "Powers"); }
+                if (mode == "backstage") Ribbon.SelectedItem = Ribbon.Items.OfType<TabItem>().First(i => (string)i.Header == "File");
+                if (mode == "table")
+                {
+                    for (int i = 0; i < _doc!.Slides.Count; i++) if (_r!.Render(i).TableCells.Count > 0) { ShowSlide(i); break; }
+                    var f = View.List!.TableCells.FirstOrDefault(); if (f.FrameId != 0) { View.SelectedId = f.FrameId; OnSelect(f.FrameId); Ribbon.SelectedItem = _tableTab; }
+                }
                 if (mode == "sorter") SetSorter(true);
                 if (mode?.StartsWith("slide") == true && int.TryParse(mode[5..], out var n)) ShowSlide(n - 1);
+                UpdateLayout();
                 Capture((FrameworkElement)Content, path);
             }
             finally { if (!wait) Application.Current.Shutdown(); }
