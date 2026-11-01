@@ -771,6 +771,13 @@ public partial class MainWindow : Window
                     for (int i = 0; i < _doc!.Slides.Count; i++) if (_r!.Render(i).TableCells.Count > 0) { ShowSlide(i); break; }
                     var f = View.List!.TableCells.FirstOrDefault(); if (f.FrameId != 0) { View.SelectedId = f.FrameId; OnSelect(f.FrameId); Ribbon.SelectedItem = _tableTab; }
                 }
+                if (mode == "privacy")
+                {
+                    var pd = ShowPrivacyForShot();
+                    var t5 = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+                    t5.Tick += (_, _) => { t5.Stop(); try { CaptureWindow(pd, path); } finally { Application.Current.Shutdown(); } };
+                    t5.Start(); wait = true; return;
+                }
                 if (mode == "dialog-live")
                 {
                     // finestra viva per la cattura dello schermo vero (tools/dialog-screen.ps1): resta aperta ~12 s poi l'app si chiude
