@@ -68,3 +68,9 @@ sono tutti spiegati da differenze reali osservate guardando le immagini:
 - Vista relatore e secondo monitor: logica implementata (presentazione sul secondo schermo, relatore sul primo), **non verificata** (PC con un solo schermo).
 - Duplicazione slide: la copia non ha commenti (le note sì); i commenti dell'originale restano intatti (`CommentsTests`).
 - `.pptm`, `.ppt`, file protetti da password: non si aprono (messaggio chiaro).
+
+## Finestre di dialogo sgranate (causa reale)
+
+Misurata con catture dello schermo vero a scala Windows 125% (`tools/dialog-screen.ps1`, CopyFromScreen): la finestra di salvataggio era nitida solo senza `AllowsTransparency`.
+Una finestra WPF a strati (`AllowsTransparency=true`) disegna il testo in software, senza ClearType, e Windows la riscala sopra il 100%. Spostare il `DropShadowEffect` su un elemento
+separato non bastava (provato: testo ancora morbido). Soluzione: finestra normale con `WindowChrome` e angoli/ombra del sistema (DWM). Dopo la modifica il testo è nitido a 125%.

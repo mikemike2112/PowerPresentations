@@ -4,9 +4,31 @@ using System.Text.Json;
 namespace PowerPresentations.Tests;
 
 /// <summary>Prove sulla UI reale (WPF) avviata come processo: UI Automation, input reale del mouse/tastiera, screenshot. Solo processi PowerPresentations.App avviati dal test.</summary>
-[Collection("Desktop"), Trait("Category", "Ui")]
-public class UiTests
+/// <summary>Blocco condiviso con le altre app: chi ha ui.lock può usare mouse e tastiera reali. Una cartella più vecchia di 20 minuti è abbandonata.</summary>
+public sealed class UiLockFixture : IDisposable
 {
+    const string Lock = @"C:\dev\_office-ref\ui.lock";
+    readonly bool _own;
+    public UiLockFixture()
+    {
+        var deadline = DateTime.UtcNow.AddMinutes(45);
+        while (true)
+        {
+            try { if (!Directory.Exists(Lock)) { Directory.CreateDirectory(Lock); _own = true; return; } }
+            catch (IOException) { }
+            try { if (Directory.Exists(Lock) && DateTime.UtcNow - Directory.GetCreationTimeUtc(Lock) > TimeSpan.FromMinutes(20)) Directory.Delete(Lock); } catch (IOException) { }
+            if (DateTime.UtcNow > deadline) throw new TimeoutException("Blocco UI non ottenuto: un'altra app sta usando mouse e tastiera.");
+            Thread.Sleep(5000);
+        }
+    }
+    public void Dispose() { if (_own) { try { Directory.Delete(Lock); } catch (IOException) { } } }
+}
+
+[Collection("Desktop"), Trait("Category", "Ui")]
+public class UiTests : IClassFixture<UiLockFixture>
+{
+    public UiTests(UiLockFixture _) { }
+
     static string Run(string script, string args, int timeoutMs = 120000)
     {
         var exe = Path.Combine(Env.Repo, "src", "PowerPresentations.App", "bin", "Debug", "net10.0-windows", "PowerPresentations.App.exe");
@@ -79,6 +101,21 @@ public class UiTests
         Assert.Equal(4, r.GetProperty("afterCtrlY").GetInt32());                // Ctrl+Y dopo Ctrl+Z (il fuoco non va perso)
         Assert.True(r.GetProperty("dialogShown").GetBoolean());                 // documento modificato: chiedere se salvare
         Assert.True(r.GetProperty("closed").GetBoolean());                      // risposta No: l'app si chiude
+    }
+
+    [Fact]
+    public void WindowResize_CompactsRibbon_AndMaximizeButtonFollowsState_UiaOnly()
+    {
+        var shots = Directory.CreateDirectory(Path.Combine(Env.Work, "ui-resize")).FullName;
+        var json = Run("ui-resize.ps1", $"-Shots \"{shots}\"").Trim().Split((char)10).Last().Trim();
+        using var d = JsonDocument.Parse(json); var r = d.RootElement;
+        Assert.Equal("Ingrandisci", r.GetProperty("maxNameNormal").GetString());                 // finestra: si può ingrandire
+        Assert.Contains("Ripristina gi", r.GetProperty("maxNameMaximized").GetString());          // ingrandita: si può ripristinare
+        Assert.Equal("Ingrandisci", r.GetProperty("maxNameBack").GetString());
+        foreach (var n in new[] { "massimizzata", "1100", "800", "640" }) Assert.True(new FileInfo(Path.Combine(shots, $"resize-{n}.png")).Length > 8000, n);
+        Assert.True(r.GetProperty("overflowButton").GetBoolean());                               // a 800 px compare "Altri comandi"
+        Assert.Equal("Seleziona,Trova e sostituisci", r.GetProperty("overflowItems").GetString());   // il gruppo che non ci sta finisce nel menu
+        Assert.StartsWith("800x", r.GetProperty("w640").GetString());                            // larghezza minima raggiunta (640 DIP a scala 125%)
     }
 
     [Fact]

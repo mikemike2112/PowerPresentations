@@ -130,6 +130,15 @@ public partial class MainWindow : Window
         string t = max ? "Ripristina giù" : "Ingrandisci"; _maxBtn.ToolTip = t; AutomationProperties.SetName(_maxBtn, t);
     }
 
+    /// <summary>Compatta titolo, schede e barra di stato quando la finestra si stringe.</summary>
+    void AdaptChrome()
+    {
+        double w = ActualWidth;
+        double pad = w < 760 ? 5 : w < 900 ? 7 : 11; double fs = w < 760 ? 12.5 : w < 900 ? 13 : 14;
+        foreach (var t in Ribbon.Items.OfType<TabItem>()) { t.Padding = new Thickness(pad, 6, pad, 6); t.FontSize = fs; }
+        if (_zoom != null) _zoom.Width = w < 900 ? 70 : 130;
+    }
+
     void UpdateQuick() { if (_undoBtn != null) { _undoBtn.IsEnabled = _undo.Count > 0; _redoBtn.IsEnabled = _redo.Count > 0; } }
 
     void BuildStatus()
