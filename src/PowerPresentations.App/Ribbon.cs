@@ -170,7 +170,7 @@ public partial class MainWindow
         _darkSwitch.Checked += (_, _) => SetDark(true); _darkSwitch.Unchecked += (_, _) => SetDark(false);
         var darkRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 14, 10, 0), VerticalAlignment = VerticalAlignment.Top };
         darkRow.Children.Add(Icons.Make("moon", 22)); darkRow.Children.Add(new TextBlock { Text = "Modalità scura", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), FontSize = 13 }); darkRow.Children.Add(_darkSwitch);
-        var powers = Tab("Powers", true, Group("Aspetto", darkRow));
+        var powers = Tab("Powers", true, Group("Aspetto", darkRow), Group("Privacy", Large("Scudo privacy", "shield", OnPrivacy)));
 
         _notesCheck = _tableChecks.First(c => AutomationProperties.GetName(c) == "Note");
         _tableChecks.Clear();
