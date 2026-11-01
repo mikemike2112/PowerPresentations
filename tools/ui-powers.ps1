@@ -37,10 +37,10 @@ try {
         if ($sw -and $sw.Current.IsOffscreen) { $sw = $null }
     }
     if ($Shots) { New-Item -ItemType Directory -Force $Shots | Out-Null; Shot $h (Join-Path $Shots 'powers-scuro.png') }
-    Front $h; Click $sw                      # clic reale sull'interruttore
+    Front $h; $res.foreground = ([WP]::GetForegroundWindow() -eq $h); $res.switchFound = [bool]$sw; if ($sw) { $res.switchRect = "$($sw.Current.BoundingRectangle)" }; Click $sw                      # clic reale sull'interruttore
     Start-Sleep -Milliseconds 800
     if ($Shots) { Shot $h (Join-Path $Shots 'powers-chiaro.png') }
-    $res.settingsAfterToggle = (Get-Content $set -Raw).Trim()
+    $res.settingsAfterToggle = if (Test-Path $set) { (Get-Content $set -Raw).Trim() } else { "ASSENTE" }
 } finally { if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force } }
 # riavvio: deve partire chiaro
 $png = Join-Path $env:TEMP 'pp-powers-restart.png'
