@@ -124,7 +124,6 @@ public partial class MainWindow
         _homeTab = Tab("Home", false,
             Group("Appunti", Large("Incolla", "paste", null), Stack(Small("Taglia", "cut", null), Small("Copia", "duplicate", null), Small("Copia formato", "generic", null))),
             Group("Diapositive", Large("Nuova diapositiva", "slide-new", () => OnNewSlide(this, new RoutedEventArgs())),
-                Stack(Small("Layout", "generic", null), Small("Ripristina", "generic", null), Small("Sezione", "generic", null)),
                 Stack(Small("Duplica", "duplicate", () => OnDuplicate(this, new RoutedEventArgs())), Small("Elimina slide", "trash", () => OnDeleteSlide(this, new RoutedEventArgs())), Small("Nascondi/mostra", "hide", () => OnToggleHidden(this, new RoutedEventArgs())))),
             Group("Carattere", Stack(
                 Row(TextBtn("A+", "Aumenta dimensione carattere", () => OnSizeUp(this, new RoutedEventArgs())), TextBtn("A−", "Riduci dimensione carattere", () => OnSizeDown(this, new RoutedEventArgs()))),
@@ -134,19 +133,19 @@ public partial class MainWindow
             Group("Paragrafo", Stack(
                 Row(Small("Elenco puntato", "bullets", null, true), Small("Elenco numerato", "numbers", null, true)),
                 Row(Small("Allinea a sinistra", "align-l", () => Align("l"), true), Small("Allinea al centro", "align-c", () => Align("ctr"), true), Small("Allinea a destra", "align-r", () => Align("r"), true), Small("Giustifica", "align-j", () => Align("just"), true)))),
-            Group("Disegno", Large("Forme", "shapes", () => OnInsertShape(this, new RoutedEventArgs())), Stack(Small("Disponi", "generic", null), Small("Elimina forma", "trash", () => OnDeleteShape(this, new RoutedEventArgs())))),
+            Group("Disegno", Large("Forme", "shapes", () => OnInsertShape(this, new RoutedEventArgs())), Stack(Small("Elimina forma", "trash", () => OnDeleteShape(this, new RoutedEventArgs())))),
             Group("Modifica", Stack(Small("Trova e sostituisci", "search", null), Small("Seleziona", "generic", null))));
 
         var insert = Tab("Inserisci", false,
             Group("Diapositive", Large("Nuova diapositiva", "slide-new", () => OnNewSlide(this, new RoutedEventArgs()))),
             Group("Tabelle", Large("Tabella", "table", () => OnInsertTable(this, new RoutedEventArgs()))),
-            Group("Immagini", Large("Immagini", "image", () => OnInsertPicture(this, new RoutedEventArgs())), Stack(Small("Schermata", "image", null), Small("Album foto", "image", null))),
-            Group("Illustrazioni", Large("Forme", "shapes", () => OnInsertShape(this, new RoutedEventArgs())), Stack(Small("Icone", "generic", null), Small("SmartArt", "generic", null), Small("Grafico", "generic", null))),
-            Group("Collegamenti", Large("Collegamento", "generic", null), Large("Azione", "generic", null)),
+            Group("Immagini", Large("Immagini", "image", () => OnInsertPicture(this, new RoutedEventArgs()))),
+            Group("Illustrazioni", Large("Forme", "shapes", () => OnInsertShape(this, new RoutedEventArgs())), Stack(Small("Icone", "generic", null))),
+            Group("Collegamenti", Large("Collegamento", "generic", null)),
             Group("Commenti", Large("Commento", "generic", null)),
-            Group("Testo", Large("Casella di testo", "textbox", () => OnInsertText(this, new RoutedEventArgs())), Large("Intestazione e piè di pagina", "generic", null), Large("WordArt", "generic", null)),
+            Group("Testo", Large("Casella di testo", "textbox", () => OnInsertText(this, new RoutedEventArgs())), Large("Intestazione e piè di pagina", "generic", null)),
             Group("Simboli", Large("Simboli", "generic", null)),
-            Group("Elementi multimediali", Large("Video", "generic", null), Large("Audio", "generic", null), Large("Registrazione schermo", "generic", null)));
+            Group("Elementi multimediali", Large("Video", "generic", null), Large("Audio", "generic", null)));
 
         var trans = Tab("Transizioni", false,
             Group("Anteprima", Large("Anteprima", "preview", () => OnTransPreview())),
