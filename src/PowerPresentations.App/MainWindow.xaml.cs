@@ -20,6 +20,9 @@ public sealed class ThumbItem : INotifyPropertyChanged
 {
     ImageSource? _img;
     public int Number { get; set; }
+    /// <summary>Nome accessibile: numero e primo testo della slide.</summary>
+    public string Title { get; set; } = "";
+    public override string ToString() => Title;
     public double Opacity { get; set; } = 1;
     public double Width { get; set; } = 170;
     public ImageSource? Image { get => _img; set { _img = value; PropertyChanged?.Invoke(this, new(nameof(Image))); } }
@@ -182,6 +185,7 @@ public partial class MainWindow : Window
     void ShowBackstage(bool on)
     {
         Backstage.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (!on) Dispatcher.BeginInvoke(() => View.Focus(), DispatcherPriority.Input);   // la tastiera (Ctrl+Z...) torna all'area di lavoro
         if (on && Backstage.Children.OfType<StackPanel>().Last().Children.OfType<TextBlock>().Last() is { } t)
             t.Text = $"{(_doc?.FilePath ?? "Presentazione non ancora salvata")}\nDiapositive: {_doc?.Slides.Count}";
     }
@@ -231,6 +235,7 @@ public partial class MainWindow : Window
         _doc!.Restore(state); _r = new SlideRenderer(_doc); _cur = Math.Min(_cur, _doc.Slides.Count - 1);
         _editId = 0; _editCell = null; Editor.Visibility = Visibility.Collapsed;
         RebuildThumbs(); ShowSlide(_cur); UpdateTitle(); UpdateQuick();
+        View.Focus();   // la ricostruzione delle miniature perde il fuoco: senza, Ctrl+Y dopo Ctrl+Z non arrivava
     }
 
     void DoUndo()
@@ -317,7 +322,8 @@ public partial class MainWindow : Window
     ThumbItem MakeThumb(int i)
     {
         var bmp = SlideDrawing.ToBitmap(_r!.Render(i), 320);
-        return new ThumbItem { Number = i + 1, Image = bmp, Opacity = _doc!.IsHidden(i) ? 0.4 : 1, Width = _sorter ? 300 : 170 };
+        var first = _r.Render(i).Items.OfType<TextItem>().FirstOrDefault()?.Text ?? "";
+        return new ThumbItem { Title = $"Diapositiva {i + 1}: {first}", Number = i + 1, Image = bmp, Opacity = _doc!.IsHidden(i) ? 0.4 : 1, Width = _sorter ? 300 : 170 };
     }
 
     void RebuildThumbs()

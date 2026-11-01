@@ -58,6 +58,7 @@
             <ListBox x:Name="Thumbs" Grid.RowSpan="2" Background="Transparent" BorderThickness="0"
                      SelectionChanged="OnThumbSelected" AllowDrop="True" Drop="OnThumbDrop" DragOver="OnThumbDragOver"
                      PreviewMouseLeftButtonDown="OnThumbMouseDown" PreviewMouseMove="OnThumbMouseMove" ScrollViewer.HorizontalScrollBarVisibility="Disabled" KeyDown="OnThumbKey">
+                <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="AutomationProperties.Name" Value="{Binding Title}"/></Style></ListBox.ItemContainerStyle>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid>

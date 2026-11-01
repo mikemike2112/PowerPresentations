@@ -67,6 +67,21 @@ public class UiTests
     }
 
     [Fact]
+    public void RealInput_UndoRedo_Buttons_And_CtrlZY_FileTab_CloseAsksToSave()
+    {
+        var json = Run("ui-undo.ps1", "").Trim().Split((char)10).Last().Trim();
+        using var d = JsonDocument.Parse(json); var r = d.RootElement;
+        Assert.Equal(4, r.GetProperty("afterDuplicate").GetInt32());
+        Assert.Equal(3, r.GetProperty("afterUndo").GetInt32());                 // pulsante Annulla
+        Assert.Equal(4, r.GetProperty("afterRedo").GetInt32());                 // pulsante Ripristina
+        Assert.True(r.GetProperty("backstage").GetBoolean());                   // scheda File a tutta pagina
+        Assert.Equal(3, r.GetProperty("afterCtrlZ").GetInt32());                // Ctrl+Z
+        Assert.Equal(4, r.GetProperty("afterCtrlY").GetInt32());                // Ctrl+Y dopo Ctrl+Z (il fuoco non va perso)
+        Assert.True(r.GetProperty("dialogShown").GetBoolean());                 // documento modificato: chiedere se salvare
+        Assert.True(r.GetProperty("closed").GetBoolean());                      // risposta No: l'app si chiude
+    }
+
+    [Fact]
     public void PresentationAndPresenterWindows_Render()
     {
         var o = Path.Combine(Env.Work, "ui-present.png");
