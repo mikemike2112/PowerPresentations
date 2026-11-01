@@ -124,6 +124,21 @@ public class OfficeNegativeControlTests
     }
 
     [Fact]
+    public void Detector_CatchesSilentRepair_ByContentComparison_AndRejectsDuplicateIds()
+    {
+        // PowerPoint (senza finestra) non mostra mai il dialogo di ripristino: o rifiuta il file (id duplicati) o lo apre correggendolo in silenzio.
+        // Caso osservato di correzione silenziosa: larghezza di colonna negativa -> la tabella cambia geometria. Il confronto del contenuto (c) lo coglie.
+        var src = Env.CorpusPath("mixed-realistic-1.pptx"); var dir = Directory.CreateDirectory(Path.Combine(Env.Work, "neg2")).FullName;
+        var tbl = Path.Combine(dir, "bad-tbl.pptx"); var dup = Path.Combine(dir, "dup-sldid.pptx"); var good = Path.Combine(dir, "good.pptx"); File.Copy(src, good, true);
+        Mutate(src, tbl, (n, d) => n == "ppt/slides/slide3.xml" ? Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(d).Replace("<a:gridCol w=\"", "<a:gridCol w=\"-")) : d);
+        Mutate(src, dup, (n, d) => n == "ppt/presentation.xml" ? Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(d).Replace("<p:sldId id=\"257\"", "<p:sldId id=\"256\"")) : d);
+        var r = ComRunner.Inspect(new[] { good, tbl, dup });
+        Assert.True(ComRunner.Ok(r[tbl]), "Office apre il file con colonna negativa (correzione silenziosa)");
+        Assert.NotEqual(ComRunner.Signature(r[good]), ComRunner.Signature(r[tbl]));
+        Assert.False(ComRunner.Ok(r[dup]), "id di slide duplicati: Office rifiuta il file");
+    }
+
+    [Fact]
     public void Watchdog_KillsOnlyOwnedInstance_WhenHeartbeatStops()
     {
         var p = Process.Start(new ProcessStartInfo("powershell", $"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(Env.Tools, "test-watchdog.ps1")}\"") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true })!;

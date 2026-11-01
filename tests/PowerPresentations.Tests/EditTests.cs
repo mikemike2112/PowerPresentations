@@ -246,3 +246,63 @@ public class SettingsAndUndoTests
         Assert.Empty(RoundTripTests.NewErrors(Env.CorpusPath("table-basic.pptx"), dst));
     }
 }
+
+public class TransitionDataLossTests
+{
+    static string TransitionXml(string file, int slide)
+    {
+        using var z = System.IO.Compression.ZipFile.OpenRead(file);
+        var x = new StreamReader(z.GetEntry($"ppt/slides/slide{slide}.xml")!.Open()).ReadToEnd();
+        var m = System.Text.RegularExpressions.Regex.Match(x, "<mc:AlternateContent[^>]*>(?:(?!</mc:AlternateContent>).)*transition.*?</mc:AlternateContent>|<p:transition.*?</p:transition>", System.Text.RegularExpressions.RegexOptions.Singleline);
+        return m.Value.Replace(" />", "/>");   // l'SDK serializza gli elementi vuoti con uno spazio: stessa semantica
+    }
+
+    [Fact]
+    public void UnchangedTransition_StaysByteIdentical_AfterOtherEdits()
+    {
+        var src = Env.CorpusPath("transitions.pptx"); var dst = Path.Combine(Env.Work, "tr-keep.pptx");
+        using (var d = PptxDocument.Open(src))
+        {
+            d.SetShapeText(1, new SlideRenderer(d).Render(1).Hits.First(h => h.HasText).Id, "altro testo"); d.SetNotes(2, "nota"); d.MoveSlide(5, 0); d.SaveAs(dst);
+        }
+        // la transizione non toccata resta identica (con p14:dur)
+        var a = TransitionXml(src, 2); Assert.Contains("p14:dur", a);
+        Assert.Equal(a, TransitionXml(dst, 2));
+        Assert.Equal(TransitionXml(src, 3), TransitionXml(dst, 3));
+    }
+
+    [Fact]
+    public void ChangedTransition_KeepsDurationInAlternateContent_AndIsValid()
+    {
+        var src = Env.CorpusPath("transitions.pptx"); var dst = Path.Combine(Env.Work, "tr-change.pptx");
+        using (var d = PptxDocument.Open(src)) { Assert.Equal("cover", d.GetTransition(1).Kind); d.SetTransition(1, "cover", "r", "slow"); d.SaveAs(dst); }
+        var x = TransitionXml(dst, 2);
+        Assert.Contains("<mc:Fallback>", x); Assert.Contains("p14:dur=\"2000\"", x); Assert.Contains("dir=\"r\"", x);
+        Assert.Empty(RoundTripTests.NewErrors(src, dst));
+        using var r = PptxDocument.Open(dst); Assert.Equal("r", r.GetTransition(1).Dir);
+    }
+
+    [Fact]
+    public void ChangingToNone_RemovesTheWholeAlternateContent()
+    {
+        var dst = Path.Combine(Env.Work, "tr-none.pptx");
+        using (var d = PptxDocument.Open(Env.CorpusPath("transitions.pptx"))) { d.SetTransition(1, "none"); d.SaveAs(dst); }
+        Assert.Equal("", TransitionXml(dst, 2));
+    }
+}
+
+public class CommentsTests
+{
+    [Fact]
+    public void DuplicateSlide_LeavesOriginalCommentsIntact_CopyHasNone_FileValid()
+    {
+        var src = Env.CorpusPath("comments.pptx"); var dst = Path.Combine(Env.Work, "comments-dup.pptx");
+        using (var d = PptxDocument.Open(src)) { d.DuplicateSlide(0); d.SaveAs(dst); }
+        using var z = System.IO.Compression.ZipFile.OpenRead(dst);
+        Assert.Single(z.Entries, e => e.FullName.StartsWith("ppt/comments/"));                   // il commento dell'originale c'è ancora, uno solo
+        var rels1 = new StreamReader(z.GetEntry("ppt/slides/_rels/slide1.xml.rels")!.Open()).ReadToEnd();
+        Assert.Contains("relationships/comments", rels1);
+        Assert.DoesNotContain("comments", new StreamReader(z.Entries.First(e => e.FullName.StartsWith("ppt/slides/_rels/") && e.FullName != "ppt/slides/_rels/slide1.xml.rels").Open()).ReadToEnd());
+        Assert.Empty(RoundTripTests.NewErrors(src, dst));
+    }
+}

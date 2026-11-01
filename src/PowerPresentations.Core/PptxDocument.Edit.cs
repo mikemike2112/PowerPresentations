@@ -405,12 +405,26 @@ public sealed partial class PptxDocument
     public void SetTransition(int i, string kind, string? dir = null, string speed = "med")
     {
         var sl = Slide(i).Slide!;
-        foreach (var ac in sl.Elements<AlternateContent>().Where(a => a.OuterXml.Contains("<p:transition") || a.OuterXml.Contains(":transition ")).ToList()) ac.Remove();
+        // PowerPoint scrive la transizione in mc:AlternateContent con p14:dur (durata in ms): la durata esistente si conserva se la velocità non cambia
+        string? oldDur = null, oldSpd = null;
+        foreach (var ac in sl.Elements<AlternateContent>().Where(a => a.OuterXml.Contains("transition")).ToList())
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(ac.OuterXml, "p14:dur=\"(\\d+)\"");
+            if (m.Success) oldDur = m.Groups[1].Value;
+            oldSpd = System.Text.RegularExpressions.Regex.Match(ac.OuterXml, "<p:transition[^>]* spd=\"(\\w+)\"").Groups[1].Value;
+            ac.Remove();
+        }
         foreach (var t in sl.Elements<P.Transition>().ToList()) t.Remove();
         if (kind != "none")
         {
             string inner = dir != null && kind is "push" or "wipe" or "cover" or "pull" or "split" or "randomBar" ? $"<p:{kind} dir=\"{dir}\"/>" : $"<p:{kind}/>";
-            var tr = new P.Transition($"<p:transition {NsDecl} spd=\"{speed}\">{inner}</p:transition>");
+            OpenXmlElement tr;
+            if (oldDur != null)
+            {
+                var dur = oldSpd == speed ? oldDur : speed switch { "fast" => "500", "slow" => "2000", _ => "1000" };
+                tr = new AlternateContent($"<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" {NsDecl}><mc:Choice xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" Requires=\"p14\"><p:transition spd=\"{speed}\" p14:dur=\"{dur}\">{inner}</p:transition></mc:Choice><mc:Fallback><p:transition spd=\"{speed}\">{inner}</p:transition></mc:Fallback></mc:AlternateContent>");
+            }
+            else tr = new P.Transition($"<p:transition {NsDecl} spd=\"{speed}\">{inner}</p:transition>");
             var anchor = (OpenXmlElement?)sl.GetFirstChild<P.ColorMapOverride>() ?? sl.CommonSlideData;
             anchor!.InsertAfterSelf(tr);
         }
