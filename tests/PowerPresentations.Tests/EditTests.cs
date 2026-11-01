@@ -116,11 +116,11 @@ public class EditTests
     public void New_FromTemplate_IsValidAndSavable()
     {
         var dst = Out("new-core");
-        using (var d = PptxDocument.New()) { Assert.Single(d.Slides); Assert.True(d.Layouts.Count >= 11); d.SaveAs(dst); }
+        using (var d = PptxDocument.New()) { Assert.Single(d.Slides); Assert.True(d.Layouts.Count == 6); d.SaveAs(dst); }
         using var r = PptxDocument.Open(dst);
         Assert.Empty(RoundTripTests.Errors(dst));
         using var z = ZipFile.OpenRead(dst);
-        Assert.DoesNotContain("nomeutente", new StreamReader(z.GetEntry("docProps/core.xml")!.Open()).ReadToEnd());
+        foreach (var e in z.Entries) Assert.DoesNotContain("nomeutente", new StreamReader(e.Open()).ReadToEnd());   // nessun dato personale; modello generato da codice, non da file Office
     }
 
     [Fact]

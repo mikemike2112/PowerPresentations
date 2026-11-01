@@ -13,7 +13,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Template.pptx" LogicalName="PowerPresentations.Core.Template.pptx" />
   </ItemGroup>
 
 </Project>
