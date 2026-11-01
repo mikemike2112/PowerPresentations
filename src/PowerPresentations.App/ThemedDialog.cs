@@ -19,12 +19,16 @@ public sealed class ThemedDialog : Window
     public int Result { get; private set; } = -1;
     Button? _primary; int _cancelIndex = -1;
 
+    [System.Runtime.InteropServices.DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+
     static Brush R(string k) => (Brush)Application.Current.Resources[k];
 
     public ThemedDialog(Window? owner, string title, string message, DialogKind kind, UIElement? extra = null, bool mutedMessage = false)
     {
         Owner = owner is { IsVisible: true } ? owner : null;
-        WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
+        WindowStyle = WindowStyle.None; AllowsTransparency = false; Background = R("PanelBrush");   // niente finestra a strati: con AllowsTransparency il testo è in software e sgranato
+        System.Windows.Shell.WindowChrome.SetWindowChrome(this, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new Thickness(0), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
+        SourceInitialized += (_, _) => { int pref = 2; DwmSetWindowAttribute(new System.Windows.Interop.WindowInteropHelper(this).Handle, 33, ref pref, 4); };   // angoli arrotondati e ombra dal sistema (Windows 11) ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
         SizeToContent = SizeToContent.WidthAndHeight; WindowStartupLocation = Owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen;
         MaxWidth = 560; Title = title; AutomationProperties.SetName(this, title);
         var icon = Icons.Make(kind switch { DialogKind.Error => "close", DialogKind.Warning => "hide", DialogKind.Question => "notes", _ => "dir-r" }, 26,
@@ -38,13 +42,12 @@ public sealed class ThemedDialog : Window
         AutomationProperties.SetName(msg, message); body.Children.Add(msg);
         if (extra != null) body.Children.Add(extra);
         body.Children.Add(_buttons);
-        Content = new Border
-        {
-            Margin = new Thickness(14), CornerRadius = new CornerRadius(10), Background = R("PanelBrush"), BorderBrush = R("LineBrush"), BorderThickness = new Thickness(1), Child = body,
-            Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 3, Opacity = 0.35, Color = Colors.Black }
-        };
+        var card = new Border { Background = R("PanelBrush"), BorderBrush = R("LineBrush"), BorderThickness = new Thickness(1), Child = body };
+        UseLayoutRounding = true; SnapsToDevicePixels = true;
+        Content = card;
         MouseLeftButtonDown += (_, e) => { if (e.OriginalSource is not TextBox and not Button) { try { DragMove(); } catch (InvalidOperationException) { } } };
         KeyDown += (_, e) => { if (e.Key == Key.Escape && _cancelIndex >= 0) { Result = _cancelIndex; Close(); e.Handled = true; } };
+        ContentRendered += (_, _) => { var w = ActualWidth; var h = ActualHeight; SizeToContent = SizeToContent.Manual; Width = w; Height = h; };   // fissa la misura: senza, con WindowChrome resta una fascia non dipinta a destra/sotto
         Loaded += (_, _) => { (_primary ?? _buttons.Children.OfType<Button>().FirstOrDefault())?.Focus(); };
     }
 

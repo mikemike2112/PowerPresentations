@@ -106,7 +106,8 @@ public partial class MainWindow : Window
             AutomationProperties.SetName(b, name); b.Click += (_, _) => run(); CaptionButtons.Children.Add(b); return b;
         }
         C("Riduci a icona", "min", () => WindowState = WindowState.Minimized);
-        C("Ingrandisci/Ripristina", "max", () => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
+        _maxBtn = C("Ingrandisci", "max", () => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
+        StateChanged += (_, _) => UpdateMaxButton();   // anche con doppio clic sulla barra e Win+frecce
         C("Chiudi", "close", Close);
 
         var collapse = new Button { Style = (Style)FindResource("RibbonButton"), Width = 26, Height = 22, Padding = new Thickness(0), Content = Icons.Make("dir-u", 12), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 8, 14, 0), ToolTip = "Comprimi il ribbon" };
@@ -117,6 +118,16 @@ public partial class MainWindow : Window
             if (Ribbon.Template.FindName("RibbonBody", Ribbon) is Border b) { bool vis = b.Visibility == Visibility.Visible; b.Visibility = vis ? Visibility.Collapsed : Visibility.Visible; collapse.Content = Icons.Make(vis ? "dir-d" : "dir-u", 12); }
         };
         Grid.SetRow(collapse, 1); Root.Children.Add(collapse);
+    }
+
+    Button _maxBtn = null!;
+
+    /// <summary>Un quadrato quando si può ingrandire, due quadrati sovrapposti quando si può ripristinare.</summary>
+    void UpdateMaxButton()
+    {
+        bool max = WindowState == WindowState.Maximized;
+        _maxBtn.Content = Icons.Make(max ? "restore" : "max", 13);
+        string t = max ? "Ripristina giù" : "Ingrandisci"; _maxBtn.ToolTip = t; AutomationProperties.SetName(_maxBtn, t);
     }
 
     void UpdateQuick() { if (_undoBtn != null) { _undoBtn.IsEnabled = _undo.Count > 0; _redoBtn.IsEnabled = _redo.Count > 0; } }
@@ -759,6 +770,14 @@ public partial class MainWindow : Window
                 {
                     for (int i = 0; i < _doc!.Slides.Count; i++) if (_r!.Render(i).TableCells.Count > 0) { ShowSlide(i); break; }
                     var f = View.List!.TableCells.FirstOrDefault(); if (f.FrameId != 0) { View.SelectedId = f.FrameId; OnSelect(f.FrameId); Ribbon.SelectedItem = _tableTab; }
+                }
+                if (mode == "dialog-live")
+                {
+                    // finestra viva per la cattura dello schermo vero (tools/dialog-screen.ps1): resta aperta ~12 s poi l'app si chiude
+                    NewDoc(); _doc!.MarkDirty();
+                    var live = ThemedDialog.BuildSave(this, null, false, "Presentazione", out _); live.Topmost = true; live.Show();
+                    var t4 = new DispatcherTimer { Interval = TimeSpan.FromSeconds(12) }; t4.Tick += (_, _) => { t4.Stop(); Application.Current.Shutdown(); }; t4.Start();
+                    wait = true; return;
                 }
                 if (mode is "dialog" or "dialog-light")
                 {
