@@ -45,6 +45,7 @@ public partial class App : Application
             At(1200, () => { Cap("0-prima"); c.Next(); At(230, () => Cap("1-meta")); At(1800, () => { Cap("2-dopo"); d.Dispose(); Shutdown(0); }); });
             return;
         }
+        ShutdownMode = ShutdownMode.OnMainWindowClose;   // chiudere la finestra principale chiude anche presentazione e vista relatore
         var win = new MainWindow(); 
         if (a.Length >= 1 && File.Exists(a[0])) win.OpenFile(a[0]);
         win.Show();

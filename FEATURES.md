@@ -23,7 +23,7 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 - [x] P0 Round-trip senza perdite (part, relazioni, elementi/attributi sconosciuti, `mc:Ignorable`, `extLst`, part custom) — `RoundTripTests.*` su 35 file + `UnknownContent_*`
 - [x] P0 Esporta PDF (PDFsharp, slide nascoste escluse come in PowerPoint) — `PdfTests.*`, confronto visivo
 - [ ] P1 Salva come `.pptm`/`.potx`, apertura `.ppt` / `.pptm` (oggi: messaggio di formato non valido)
-- [ ] P1 Annulla / Ripristina
+- [x] P1 Annulla / Ripristina (pulsanti, Ctrl+Z/Ctrl+Y) — `UiTests.RealInput_UndoRedo_*`
 - [ ] P2 Stampa, Esporta come video/immagini, protezione con password
 
 ## Home

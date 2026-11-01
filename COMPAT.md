@@ -10,8 +10,7 @@ Un file per funzionalità (titolo, 11 layout, master personalizzato, colori/font
 con ritaglio, tabelle e celle unite, note, 6 transizioni, animazioni, slide nascosta, sezioni, sfondi, autofit, gruppi, collegamenti, commenti, piè
 di pagina, layout personalizzato, 4:3, ombre/effetti, WordArt) più due file "misti" realistici.
 
-**Non nel corpus**: grafici (la creazione apre Excel, processo di un altro agente: non toccato) e SmartArt (`AddSmartArt` non utilizzabile via COM
-su questa installazione). Questi oggetti sono comunque conservati dal round-trip (provato con l'elemento sconosciuto/part custom, non con file reali).
+**Non nel corpus**: grafici (non aggiunti) e SmartArt: su questa installazione `Application.SmartArtLayouts.Count` vale 0, quindi `Shapes.AddSmartArt(SmartArtLayouts.Item(1), …)` fallisce con "Impossibile chiamare un metodo su un'espressione con valore null". Questi oggetti sono comunque conservati dal round-trip (provato con l'elemento sconosciuto/part custom, non con file reali).
 
 ## Round-trip (per ognuno dei 35 file)
 
@@ -38,8 +37,7 @@ XML rotto in una slide (`PowerPoint could not open the file`), relazione/part ma
 (`<a:off x="abc…`). Il file buono dello stesso test passa. In questa configurazione PowerPoint **rifiuta** i file corrotti con un'eccezione COM
 invece di mostrare il dialogo di ripristino; il caso del dialogo modale è comunque coperto dal watchdog per PID (`tools/watchdog.ps1`):
 `tools/test-watchdog.ps1` dimostra che, fermando il battito, viene ucciso **solo** il PID di PowerPoint avviato dallo script (`OfficeNegativeControlTests`).
-Un eventuale ripristino silenzioso che alteri il contenuto verrebbe colto dal confronto (c). Limite: non abbiamo trovato un file che PowerPoint
-apra *riparandolo* senza dialogo, quindi quel ramo del rilevatore non è stato osservato direttamente.
+Un eventuale ripristino silenzioso che alteri il contenuto verrebbe colto dal confronto (c). Esito della ricerca di un file "riparato": con id di slide o di layout duplicati PowerPoint rifiuta il file (0x80070570); con larghezza di colonna negativa lo apre correggendolo in silenzio (contenuto diverso, colto dal confronto (c): `Detector_CatchesSilentRepair_*`); altre alterazioni (embed inesistente, enum non valido, id forma duplicato, content type mancante, elemento sconosciuto) sono aperte senza differenze nel contenuto letto. Un dialogo di ripristino non è mai comparso.
 
 ## Confronto visivo (PDF PowerPoint vs PDF clone, rasterizzati con `Windows.Data.Pdf`)
 
@@ -66,7 +64,7 @@ sono tutti spiegati da differenze reali osservate guardando le immagini:
 - Gruppi: la rotazione/ribaltamento del gruppo non si applica ai figli (la posizione sì).
 - Immagini: EMF/WMF/SVG senza PNG di ripiego → riquadro grigio; maschere di ritaglio a forma ignorate.
 - Slide numero/data: campo `slidenum` calcolato, `datetime` mostra il testo memorizzato.
-- Transizioni: gli effetti p14 (vortice, cubo…) si leggono come "altro" e si riproducono in dissolvenza; in scrittura il clone rimuove un `mc:AlternateContent` di transizione e scrive la forma base.
+- Transizioni: gli effetti p14 (vortice, cubo…) si leggono come "altro" e si riproducono in dissolvenza. Una transizione che l'utente non cambia resta identica (`mc:AlternateContent` e `p14:dur` conservati, test `TransitionDataLossTests`). Se la cambia, il clone riscrive l'`mc:AlternateContent` con la nuova transizione conservando `p14:dur` (o 500/1000/2000 ms se cambia la velocità); si perdono solo gli attributi p14 specifici dell'effetto precedente, e passando a "Nessuna" l'intero blocco viene rimosso.
 - Vista relatore e secondo monitor: logica implementata (presentazione sul secondo schermo, relatore sul primo), **non verificata** (PC con un solo schermo).
-- Duplicazione slide: i commenti non si copiano; le note sì.
+- Duplicazione slide: la copia non ha commenti (le note sì); i commenti dell'originale restano intatti (`CommentsTests`).
 - `.pptm`, `.ppt`, file protetti da password: non si aprono (messaggio chiaro).

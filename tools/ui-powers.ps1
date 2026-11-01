@@ -16,7 +16,7 @@ $env:PP_SETTINGS = $set
 $AE = [System.Windows.Automation.AutomationElement]; $TS = [System.Windows.Automation.TreeScope]
 function Find($root, $name) { $root.FindFirst($TS::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($AE::NameProperty), $name)) }
 function Click($e) { $r = $e.Current.BoundingRectangle; [void][WP]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); Start-Sleep -Milliseconds 250; [WP]::mouse_event(2, 0, 0, 0, 0); [WP]::mouse_event(4, 0, 0, 0, 0); Start-Sleep -Milliseconds 700 }
-function Front($h) { for ($i = 0; $i -lt 6; $i++) { [void][WP]::SetWindowPos($h, [IntPtr]::new(-1), 0, 0, 0, 0, 0x43); [WP]::keybd_event(0x12, 0, 0, 0); [WP]::keybd_event(0x12, 0, 2, 0); [void][WP]::SetForegroundWindow($h); Start-Sleep -Milliseconds 300; if ([WP]::GetForegroundWindow() -eq $h) { return } } }   # topmost + foreground (trucco ALT contro il blocco del focus); i clic reali non finiscono su altre finestre
+function Front($h) { if ([WP]::GetForegroundWindow() -eq $h) { return }; for ($i = 0; $i -lt 6; $i++) { [void][WP]::SetWindowPos($h, [IntPtr]::new(-1), 0, 0, 0, 0, 0x43); [WP]::keybd_event(0x12, 0, 0, 0); [WP]::keybd_event(0x12, 0, 2, 0); [void][WP]::SetForegroundWindow($h); Start-Sleep -Milliseconds 300; if ([WP]::GetForegroundWindow() -eq $h) { return } } }   # topmost + foreground (trucco ALT contro il blocco del focus); i clic reali non finiscono su altre finestre
 function Shot($h, $path) {
     $r = New-Object WP+RECT; [void][WP]::GetWindowRect($h, [ref]$r)
     $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T); $g = [System.Drawing.Graphics]::FromImage($bmp); $hdc = $g.GetHdc()

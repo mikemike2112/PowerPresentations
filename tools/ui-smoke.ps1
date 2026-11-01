@@ -24,11 +24,11 @@ function Press($root, $name) {
     $o = $null
     if ($e.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$o)) { $o.Invoke() }
     elseif ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$o)) { $o.Select() }
-    elseif ($e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$o)) { Front $h; Start-Sleep -Milliseconds 300; $r = $e.Current.BoundingRectangle; [void][W]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); Start-Sleep -Milliseconds 200; [W]::mouse_event(2, 0, 0, 0, 0); [W]::mouse_event(4, 0, 0, 0, 0) }  # clic reale: Toggle() di UIA non genera Click
+    elseif ($e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$o)) { for ($t = 0; $t -lt 4 -and $o.Current.ToggleState -ne 'On'; $t++) { Front $h; Start-Sleep -Milliseconds 300; Click $e } }   # clic reale, ripetuto finche' lo stato e' On (condizione, non attesa fissa)
     else { throw "nessun pattern per $name" }
     Start-Sleep -Milliseconds 600
 }
-function Front($h) { for ($i = 0; $i -lt 6; $i++) { [void][W]::SetWindowPos($h, [IntPtr]::new(-1), 0, 0, 0, 0, 0x43); [W]::keybd_event(0x12, 0, 0, 0); [W]::keybd_event(0x12, 0, 2, 0); [void][W]::SetForegroundWindow($h); Start-Sleep -Milliseconds 300; if ([W]::GetForegroundWindow() -eq $h) { return } } }   # topmost + foreground (trucco ALT contro il blocco del focus); i clic reali non finiscono su altre finestre
+function Front($h) { if ([W]::GetForegroundWindow() -eq $h) { return }; for ($i = 0; $i -lt 6; $i++) { [void][W]::SetWindowPos($h, [IntPtr]::new(-1), 0, 0, 0, 0, 0x43); [W]::keybd_event(0x12, 0, 0, 0); [W]::keybd_event(0x12, 0, 2, 0); [void][W]::SetForegroundWindow($h); Start-Sleep -Milliseconds 300; if ([W]::GetForegroundWindow() -eq $h) { return } } }   # topmost + foreground (trucco ALT contro il blocco del focus); i clic reali non finiscono su altre finestre
 function Shot($h, $path) {
     $r = New-Object W+RECT; [void][W]::GetWindowRect($h, [ref]$r)
     $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T); $g = [System.Drawing.Graphics]::FromImage($bmp); $hdc = $g.GetHdc()
@@ -46,25 +46,34 @@ try {
     # drag & drop reale: prima miniatura -> terza
     $items = $root.FindAll($TS::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($AE::ControlTypeProperty), ([System.Windows.Automation.ControlType]::ListItem)))
     $result.thumbnails = $items.Count
-    $a = $items[0].Current.BoundingRectangle; $b = $items[2].Current.BoundingRectangle
-    Front $h; Start-Sleep -Milliseconds 300
-    [W]::SetCursorPos([int]($a.X + $a.Width / 2), [int]($a.Y + $a.Height / 2)); Start-Sleep -Milliseconds 200
-    [W]::mouse_event(2, 0, 0, 0, 0); Start-Sleep -Milliseconds 200
-    for ($i = 1; $i -le 20; $i++) { [W]::SetCursorPos([int]($a.X + $a.Width / 2), [int]($a.Y + $a.Height / 2 + ($b.Y - $a.Y) * $i / 20)); Start-Sleep -Milliseconds 30 }
-    Start-Sleep -Milliseconds 300; [W]::mouse_event(4, 0, 0, 0, 0); Start-Sleep -Seconds 1
+    for ($try = 0; $try -lt 4; $try++) {
+        $items = $root.FindAll($TS::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($AE::ControlTypeProperty), ([System.Windows.Automation.ControlType]::ListItem)))
+        if ($items[1].Current.Name -like '*Obiettivi*') { break }     # condizione, non attesa fissa: riordinato
+        $a = $items[0].Current.BoundingRectangle; $b = $items[2].Current.BoundingRectangle
+        Front $h
+        [void][W]::SetCursorPos([int]($a.X + $a.Width / 2), [int]($a.Y + $a.Height / 2)); Start-Sleep -Milliseconds 300
+        [W]::mouse_event(2, 0, 0, 0, 0); Start-Sleep -Milliseconds 300
+        for ($i = 1; $i -le 30; $i++) { [void][W]::SetCursorPos([int]($a.X + $a.Width / 2), [int]($a.Y + $a.Height / 2 + ($b.Y - $a.Y) * $i / 30)); Start-Sleep -Milliseconds 50 }
+        [void][W]::SetCursorPos([int]($b.X + $b.Width / 2), [int]($b.Y + $b.Height / 2)); Start-Sleep -Milliseconds 400
+        [W]::mouse_event(4, 0, 0, 0, 0); Start-Sleep -Seconds 1
+    }
+    $result.dragTries = $try; $result.names = (($root.FindAll($TS::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($AE::ControlTypeProperty), ([System.Windows.Automation.ControlType]::ListItem))) | % { $_.Current.Name }) -join "/")
     if ($Shots) { New-Item -ItemType Directory -Force $Shots | Out-Null }  # la finestra principale non si cattura dallo schermo (ombre/bordi includono altre finestre): vedi screenshot.ps1
     Front $h; Click (Find $root 'Salva'); Start-Sleep -Seconds 2   # clic reale sul pulsante Salva della barra del titolo
     # presentazione a schermo intero
-    Click (Find $root 'Avvia presentazione'); Start-Sleep -Seconds 3   # clic reale su Avvia presentazione
-    $wins = $AE::RootElement.FindAll($TS::Children, (New-Object System.Windows.Automation.PropertyCondition ($AE::ProcessIdProperty), $p.Id))
-    $show = $null; foreach ($w in $wins) { if ($w.Current.Name -eq 'Presentazione') { $show = $w } }
+    $show = $null
+    for ($t = 0; $t -lt 4 -and -not $show; $t++) {
+        Front $h; Click (Find $root 'Avvia presentazione'); Start-Sleep -Seconds 2
+        $wins = $AE::RootElement.FindAll($TS::Children, (New-Object System.Windows.Automation.PropertyCondition ($AE::ProcessIdProperty), $p.Id))
+        foreach ($w in $wins) { if ($w.Current.Name -eq 'Presentazione') { $show = $w } }
+    }
     $result.showWindow = [bool]$show
     if ($show) {
         $br = $show.Current.BoundingRectangle; $result.showSize = "$([int]$br.Width)x$([int]$br.Height)"
         if ($Shots) { Shot ([IntPtr]$show.Current.NativeWindowHandle) (Join-Path $Shots 'app-schermo-intero-reale.png') }
         Front ([IntPtr]$show.Current.NativeWindowHandle); [System.Windows.Forms.SendKeys]::SendWait('{RIGHT}'); Start-Sleep -Seconds 2
         if ($Shots) { Shot ([IntPtr]$show.Current.NativeWindowHandle) (Join-Path $Shots 'app-schermo-intero-reale-2.png') }
-        [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Seconds 1
+        Front ([IntPtr]$show.Current.NativeWindowHandle); [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Seconds 1; Front $h
     }
     $o = $null; if ($root.TryGetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern, [ref]$o)) { $o.Close() }
     if (-not $p.WaitForExit(10000)) { $result.closed = $false } else { $result.closed = $true }
