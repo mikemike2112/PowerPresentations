@@ -306,3 +306,40 @@ public class CommentsTests
         Assert.Empty(RoundTripTests.NewErrors(src, dst));
     }
 }
+
+public class SavePlanTests
+{
+    [Theory]
+    [InlineData("", false)] [InlineData("   ", false)] [InlineData("a/b", false)] [InlineData("a:b", false)] [InlineData("a?", false)] [InlineData("fine.", false)]
+    [InlineData("CON", false)] [InlineData("nul.pptx", false)] [InlineData("Relazione finale", true)] [InlineData("ciao.pptx", true)] [InlineData("è ü 日本", true)]
+    public void ValidateName(string name, bool ok) => Assert.Equal(ok, Core.SavePlan.ValidateName(name) == null);
+
+    [Fact]
+    public void Check_FolderErrors_Overwrite_AndExtension()
+    {
+        var dir = Directory.CreateDirectory(Path.Combine(Env.Work, "saveplan")).FullName;
+        Assert.NotNull(Core.SavePlan.Check(Path.Combine(dir, "manca"), "x").Error);        // cartella inesistente
+        Assert.NotNull(Core.SavePlan.Check("relativa", "x").Error);
+        Assert.NotNull(Core.SavePlan.Check(dir, "a|b").Error);
+        var (e, over, p) = Core.SavePlan.Check(dir, "nuovo");
+        Assert.Null(e); Assert.False(over); Assert.Equal(Path.Combine(dir, "nuovo.pptx"), p);   // aggiunge .pptx
+        Assert.False(File.Exists(p));                                                            // la verifica non scrive nulla
+        File.WriteAllText(p, "x");
+        Assert.True(Core.SavePlan.Check(dir, "nuovo.pptx").NeedsOverwriteConfirm);               // esiste: serve conferma, mai sovrascrittura silenziosa
+    }
+
+    [Fact]
+    public void ButtonMapping_OnlySaveWrites_CancelStops_DontSaveProceeds()
+    {
+        Assert.True(Core.SavePlan.Writes(Core.SaveChoice.Save)); Assert.False(Core.SavePlan.Writes(Core.SaveChoice.DontSave)); Assert.False(Core.SavePlan.Writes(Core.SaveChoice.Cancel));
+        Assert.True(Core.SavePlan.Proceeds(Core.SaveChoice.Save)); Assert.True(Core.SavePlan.Proceeds(Core.SaveChoice.DontSave)); Assert.False(Core.SavePlan.Proceeds(Core.SaveChoice.Cancel));
+    }
+
+    [Fact]
+    public void AtomicSave_ToNewPath_LeavesNoTempFiles()
+    {
+        var dir = Directory.CreateDirectory(Path.Combine(Env.Work, "saveplan2")).FullName; var dst = Path.Combine(dir, "x.pptx");
+        using (var d = PptxDocument.New()) d.SaveAs(dst);
+        Assert.Equal(new[] { dst }, Directory.GetFiles(dir));
+    }
+}

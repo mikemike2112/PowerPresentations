@@ -79,3 +79,8 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 
 - [ ] P1 Controllo ortografico, commenti, traduzione
 - [ ] P2 Accessibilità, protezione, firma, macro (mai eseguite: i file con macro non si aprono)
+
+## Finestre di dialogo e salvataggio
+
+- [x] P1 Dialoghi propri a tema (`ThemedDialog`, niente `MessageBox`): richiesta di salvataggio «Vuoi salvare le modifiche a …?» con Salva / Non salvare / Annulla; per un documento senza file, campo Nome file e Percorso con "Sfoglia…"; Salva con nome con "Altre opzioni…"; conferma di sostituzione — logica in `SavePlanTests` (nome non valido, sovrascrittura, mappatura pulsanti); aspetto: `docs/dialog-salva-scuro.png`, `docs/dialog-salva-chiaro.png`. La verifica con input reale (`RealInput_UndoRedo_*`, adattato a "Non salvare") non è stata rieseguita dopo questa modifica.
+- [x] Manifest con Common Controls v6 e DPI PerMonitorV2 (`app.manifest`).
