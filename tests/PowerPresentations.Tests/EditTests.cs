@@ -120,7 +120,7 @@ public class EditTests
         using var r = PptxDocument.Open(dst);
         Assert.Empty(RoundTripTests.Errors(dst));
         using var z = ZipFile.OpenRead(dst);
-        foreach (var e in z.Entries) Assert.DoesNotContain("nomeutente", new StreamReader(e.Open()).ReadToEnd());   // nessun dato personale; modello generato da codice, non da file Office
+        foreach (var e in z.Entries) Assert.DoesNotContain(Environment.UserName, new StreamReader(e.Open()).ReadToEnd());   // nessun dato personale; modello generato da codice, non da file Office
     }
 
     [Fact]
