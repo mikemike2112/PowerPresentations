@@ -41,7 +41,7 @@ Riga di comando dell'app (usata dai test e dagli script): `--render-png <pptx> <
 
 Strumenti in `tools/` (PowerShell 5.1 + COM): `make-corpus.ps1` (rigenera il corpus con PowerPoint), `office-inspect.ps1` (apre i file in Office e
 scrive JSON), `watchdog.ps1`/`Common.ps1` (isolamento per PID), `visual-compare.ps1` + `PdfRaster` (confronto PDF), `ribbon-inventory.ps1`,
-`ui-smoke.ps1`, `screenshot.ps1`, `make-template.ps1`, `make-icon.ps1`.
+`ui-smoke.ps1`, `screenshot.ps1`, `make-icon.ps1`.
 
 ## Architettura
 
@@ -79,7 +79,7 @@ nessun supporto a più monitor verificato. Elenco completo in `FEATURES.md` e `C
 
 ```
 dotnet build  → Compilazione completata. Avvisi: 0  Errori: 0
-dotnet test   → Superato! Non superati: 0. Superati: 225. Ignorati: 0. Totale: 225. Durata: 1 m 32 s
+dotnet test   → Superato! Non superati: 0. Superati: 225. Ignorati: 0. Totale: 225. Durata: 1 m 29 s
 ```
 
 Corpus: 35 file dal vero PowerPoint, 35/35 (100%) si riaprono in Office dopo il round-trip del clone con contenuto identico; il controllo negativo

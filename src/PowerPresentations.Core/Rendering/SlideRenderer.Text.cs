@@ -95,7 +95,7 @@ public sealed partial class SlideRenderer
 
     static readonly XElement BuiltInStyle = XElement.Parse(BuiltInStyleXml);
 
-    sealed class CellInfo { public XElement Tc = null!; public int R, C, ColSpan = 1, RowSpan = 1; public double W, H; public Laid? Laid; public double[] M = new double[4]; }
+    sealed class CellInfo { public XElement Tc = null!; public int R, C, ColSpan = 1, RowSpan = 1; public double W; public Laid? Laid; public double[] M = new double[4]; }
 
     void DrawTable(St st, XElement tbl, RectD box, int id)
     {

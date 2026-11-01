@@ -19,7 +19,7 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 
 - [x] P0 Apri `.pptx` (Open XML SDK, file non fidato: errori → messaggio chiaro) — `EditTests.MalformedInput_*`, `RoundTripTests`
 - [x] P0 Salva / Salva con nome, atomico (file temporaneo + sostituzione) — `EditTests.Save_IsAtomic_*`
-- [x] P0 Nuova presentazione da modello incorporato — `EditTests.New_FromTemplate_*`, `OfficeEditTests.NewFromTemplate_OpensInOffice`
+- [x] P0 Nuova presentazione da modello generato da codice (`TemplateBuilder`: tema "Prisma", master, 6 layout originali, nessun file Office) — `EditTests.New_FromTemplate_*`, `OfficeEditTests.NewFromTemplate_OpensInOffice`
 - [x] P0 Round-trip senza perdite (part, relazioni, elementi/attributi sconosciuti, `mc:Ignorable`, `extLst`, part custom) — `RoundTripTests.*` su 35 file + `UnknownContent_*`
 - [x] P0 Esporta PDF (PDFsharp, slide nascoste escluse come in PowerPoint) — `PdfTests.*`, confronto visivo
 - [ ] P1 Salva come `.pptm`/`.potx`, apertura `.ppt` / `.pptm` (oggi: messaggio di formato non valido)

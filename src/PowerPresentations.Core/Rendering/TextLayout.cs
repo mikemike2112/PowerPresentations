@@ -63,7 +63,7 @@ internal sealed class PProps
 internal sealed class TextCtx
 {
     public ThemeInfo Theme = null!; public ColorCtx Colors = null!; public int SlideNo = 1;
-    public Rgba DefaultColor; public Rgba? PhColor;
+    public Rgba DefaultColor;
     public string Font(string? latin) => latin switch { null or "" => Theme.MinorFont, "+mn-lt" => Theme.MinorFont, "+mj-lt" => Theme.MajorFont, _ => latin };
 }
 
@@ -129,7 +129,7 @@ internal static class TextEngine
                 var face = FontFace.Get(tc.Font(r.Latin), r.B == true, r.I == true);
                 var font = face.Family;
                 var color = r.Hlink ? tc.Colors.Resolve(new XElement(Ns.A + "schemeClr", new XAttribute("val", "hlink"))) ?? tc.DefaultColor
-                    : tc.Colors.Resolve(r.Fill?.Elements().FirstOrDefault(), tc.PhColor) ?? tc.DefaultColor;
+                    : tc.Colors.Resolve(r.Fill?.Elements().FirstOrDefault()) ?? tc.DefaultColor;
                 return new Tok(r, text, face.Measure(text, sz), face.Measure(text.TrimEnd(), sz), br, sz, font, color);
             }
             foreach (var c in p.Elements())
@@ -173,7 +173,7 @@ internal static class TextEngine
                 else if (pp.BuKind == "char") br.Latin = "Arial";
                 br.Sz = (first.P.Sz ?? 18) * (pp.BuSzPct ?? 1);
                 var t = Make(br, bText);
-                var col = pp.BuClr != null ? tc.Colors.Resolve(pp.BuClr, tc.PhColor) ?? first.Color : first.Color;
+                var col = pp.BuClr != null ? tc.Colors.Resolve(pp.BuClr) ?? first.Color : first.Color;
                 bTok = t with { Color = col };
             }
             else

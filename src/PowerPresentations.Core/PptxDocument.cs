@@ -58,10 +58,8 @@ public sealed partial class PptxDocument : IDisposable
     /// <summary>Nuova presentazione dal modello incorporato (tema, master e layout).</summary>
     public static PptxDocument New()
     {
-        using var s = typeof(PptxDocument).Assembly.GetManifestResourceStream("PowerPresentations.Core.Template.pptx")
-            ?? throw new InvalidOperationException("Modello incorporato mancante.");
-        using var b = new MemoryStream(); s.CopyTo(b);
-        var d = FromBytes(b.ToArray());
+        var d = FromBytes(TemplateBuilder.Build());
+        d.AddSlide(d.Layouts[0], -1);
         d.Dirty = true;
         return d;
     }
