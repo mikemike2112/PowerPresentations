@@ -55,7 +55,7 @@ public class RoundTripTests
         foreach (var e in z.Entries.Where(e => e.FullName.EndsWith(".xml") || e.FullName.EndsWith(".rels")))
         {
             var t = new StreamReader(e.Open()).ReadToEnd();
-            Assert.DoesNotContain("nomeutente", t, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(Environment.UserName, t, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("@gmail", t, StringComparison.OrdinalIgnoreCase);
         }
     }
