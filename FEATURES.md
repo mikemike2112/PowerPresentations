@@ -84,3 +84,10 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 
 - [x] P1 Dialoghi propri a tema (`ThemedDialog`, niente `MessageBox`): richiesta di salvataggio «Vuoi salvare le modifiche a …?» con Salva / Non salvare / Annulla; per un documento senza file, campo Nome file e Percorso con "Sfoglia…"; Salva con nome con "Altre opzioni…"; conferma di sostituzione — logica in `SavePlanTests` (nome non valido, sovrascrittura, mappatura pulsanti); aspetto: `docs/dialog-salva-scuro.png`, `docs/dialog-salva-chiaro.png`. La verifica con input reale (`RealInput_UndoRedo_*`, adattato a "Non salvare") non è stata rieseguita dopo questa modifica.
 - [x] Manifest con Common Controls v6 e DPI PerMonitorV2 (`app.manifest`).
+
+## Scudo privacy, finestra e ribbon adattivo
+
+- [x] P1 Scudo privacy (scheda Powers): analisi con valori reali (autore, ultimo autore, società, manager, proprietà personalizzate, autori di commenti, percorsi locali, miniatura), copia `nome (pulito).pptx` con scelta anonimizza/rimuovi commenti, ricontrollo della copia, avvisi per ciò che non pulisce (EXIF, oggetti incorporati, macro, slide nascoste, note, collegamenti locali) — `PrivacyTests`, `PrivacyOfficeTests` (copia aperta nel vero Office senza ripristino, stesso contenuto). Screenshot: `docs/scudo-privacy.png`.
+- [x] Pulsante ingrandisci/ripristina con icona e tooltip che seguono lo stato ("Ingrandisci" / "Ripristina giù") — `UiTests.WindowResize_*` (UI Automation).
+- [x] Ribbon adattivo: gruppi compatti (solo icone) e poi menu "Altri comandi"; barra del titolo e schede si stringono fino a 640 DIP — `UiTests.WindowResize_*`, screenshot `docs/resize-*.png`.
+- Voci tolte dall'interfaccia (il contenuto già nei file resta conservato): Inserisci → Schermata, Album foto, SmartArt, Grafico, Azione, WordArt, Registrazione schermo; Home → Layout, Ripristina (gruppo Diapositive), Sezione, Disponi. Annulla/Ripristina in alto restano.

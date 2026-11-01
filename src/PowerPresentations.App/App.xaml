@@ -136,10 +136,11 @@
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="{DynamicResource FgBrush}"/>
             <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="11,6"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="b" Padding="11,6" BorderThickness="0,0,0,2" BorderBrush="Transparent" Background="Transparent" CornerRadius="4,4,0,0">
+                        <Border x:Name="b" Padding="{TemplateBinding Padding}" BorderThickness="0,0,0,2" BorderBrush="Transparent" Background="Transparent" CornerRadius="4,4,0,0">
                             <ContentPresenter ContentSource="Header" TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                         <ControlTemplate.Triggers>
