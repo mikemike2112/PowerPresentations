@@ -15,13 +15,13 @@ public enum DialogKind { Info, Warning, Error, Question }
 /// <summary>Finestra di dialogo propria: senza bordo di sistema, angoli arrotondati, colori del tema attivo e accento dell'app. Sostituisce MessageBox.</summary>
 public sealed class ThemedDialog : Window
 {
-    readonly StackPanel _buttons = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 18, 0, 0) };
+    readonly StackPanel _buttons = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 22, 0, 0) };
     public int Result { get; private set; } = -1;
     Button? _primary; int _cancelIndex = -1;
 
     static Brush R(string k) => (Brush)Application.Current.Resources[k];
 
-    public ThemedDialog(Window? owner, string title, string message, DialogKind kind, UIElement? extra = null)
+    public ThemedDialog(Window? owner, string title, string message, DialogKind kind, UIElement? extra = null, bool mutedMessage = false)
     {
         Owner = owner is { IsVisible: true } ? owner : null;
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
@@ -29,12 +29,12 @@ public sealed class ThemedDialog : Window
         MaxWidth = 560; Title = title; AutomationProperties.SetName(this, title);
         var icon = Icons.Make(kind switch { DialogKind.Error => "close", DialogKind.Warning => "hide", DialogKind.Question => "notes", _ => "dir-r" }, 26,
             kind is DialogKind.Error or DialogKind.Warning ? R("PowersBrush") : R("AccentBrush"));
-        var body = new StackPanel { Margin = new Thickness(24, 20, 24, 20), MinWidth = 380 };
+        var body = new StackPanel { Margin = new Thickness(24, 20, 24, 20), MinWidth = 440 };
         var head = new StackPanel { Orientation = Orientation.Horizontal };
         head.Children.Add(icon);
         head.Children.Add(new TextBlock { Text = title, FontSize = 17, FontWeight = FontWeights.SemiBold, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = R("FgBrush") });
         body.Children.Add(head);
-        var msg = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, FontSize = 13.5, Margin = new Thickness(38, 10, 0, 0), Foreground = R("FgBrush") };
+        var msg = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, FontSize = mutedMessage ? 12.5 : 13.5, Margin = new Thickness(38, 6, 0, 0), Foreground = R(mutedMessage ? "MutedBrush" : "FgBrush") };
         AutomationProperties.SetName(msg, message); body.Children.Add(msg);
         if (extra != null) body.Children.Add(extra);
         body.Children.Add(_buttons);
@@ -88,15 +88,15 @@ public sealed class ThemedDialog : Window
         UIElement? extra = null;
         if (needsPath)
         {
-            var g = new StackPanel { Margin = new Thickness(38, 14, 0, 0) };
-            TextBlock L(string t) => new() { Text = t, FontSize = 12, Foreground = R("MutedBrush"), Margin = new Thickness(0, 6, 0, 3), TextWrapping = TextWrapping.Wrap, MaxWidth = 440 };
+            var g = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
+            TextBlock L(string t) => new() { Text = t, FontSize = 12, Foreground = R("MutedBrush"), Margin = new Thickness(0, 8, 0, 4) };
             name = new TextBox { Text = Path.GetFileNameWithoutExtension(display), FontSize = 13.5, Padding = new Thickness(6, 5, 6, 5) }; AutomationProperties.SetName(name, "Nome file");
             folder = new TextBox { Text = existingPath != null ? Path.GetDirectoryName(existingPath) ?? DefaultFolder() : DefaultFolder(), FontSize = 12.5, Padding = new Thickness(6, 5, 6, 5) }; AutomationProperties.SetName(folder, "Percorso");
             string browseLabel = saveAsMode ? "Altre opzioni…" : "Sfoglia…";
-            var browse = new Button { Content = browseLabel, Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(12, 4, 12, 4) }; AutomationProperties.SetName(browse, browseLabel);
+            var browse = new Button { Content = browseLabel, Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(14, 0, 14, 0), MinWidth = 96 }; AutomationProperties.SetName(browse, browseLabel);
             var row = new DockPanel(); DockPanel.SetDock(browse, Dock.Right); row.Children.Add(browse); row.Children.Add(folder);
-            err = new TextBlock { Foreground = R("PowersBrush"), FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Margin = new Thickness(0, 8, 0, 0), Visibility = Visibility.Collapsed }; AutomationProperties.SetName(err, "Errore");
-            g.Children.Add(L("Nome file")); g.Children.Add(name); g.Children.Add(L("Percorso: è solo una proposta, nulla viene scritto finché non premi Salva")); g.Children.Add(row); g.Children.Add(err);
+            err = new TextBlock { Foreground = R("PowersBrush"), FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0), Visibility = Visibility.Collapsed }; AutomationProperties.SetName(err, "Errore");
+            g.Children.Add(L("Nome file")); g.Children.Add(name); g.Children.Add(L("Percorso")); g.Children.Add(row); g.Children.Add(err);
             browse.Click += (_, _) =>
             {
                 var sd = new SaveFileDialog { Filter = "Presentazione (*.pptx)|*.pptx", FileName = name.Text, InitialDirectory = Directory.Exists(folder.Text) ? folder.Text : DefaultFolder(), DefaultExt = ".pptx", OverwritePrompt = false };
@@ -104,9 +104,9 @@ public sealed class ThemedDialog : Window
             };
             extra = g;
         }
-        string title = saveAsMode ? "Salva con nome" : "Vuoi salvare le modifiche?";
-        string msg = saveAsMode ? "Scegli nome e cartella della presentazione." : $"Vuoi salvare le modifiche a «{display}»?";
-        d = new ThemedDialog(owner, title, msg, DialogKind.Question, extra);
+        string title = saveAsMode ? "Salva con nome" : $"Vuoi salvare le modifiche a «{display}»?";
+        string msg = saveAsMode ? "Scegli nome e cartella della presentazione." : "Se non salvi, le modifiche andranno perse.";
+        d = new ThemedDialog(owner, title, msg, DialogKind.Question, extra, mutedMessage: true);
         string? chosen = null;
         bool Validate()
         {
@@ -117,15 +117,16 @@ public sealed class ThemedDialog : Window
             if (overwrite && !same && !Confirm(d, "Sostituire il file?", $"«{Path.GetFileName(p)}» esiste già in questa cartella. Vuoi sostituirlo?", "Sostituisci")) return false;
             chosen = p; return true;
         }
-        d.AddButton("Salva", true, false, Validate);
-        if (!saveAsMode) d.AddButton("Non salvare");
+        // ordine come in Windows 11: Annulla, Non salvare, Salva (primario a destra)
         d.AddButton("Annulla", false, true);
+        if (!saveAsMode) d.AddButton("Non salvare");
+        d.AddButton("Salva", true, false, Validate);
         d.Loaded += (_, _) => { if (name != null) { name.Focus(); name.SelectAll(); } };
         var dlg = d;
         result = () =>
         {
-            int dont = saveAsMode ? -1 : 1, cancel = saveAsMode ? 1 : 2;
-            var choice = dlg.Result == 0 ? SaveChoice.Save : dlg.Result == dont ? SaveChoice.DontSave : SaveChoice.Cancel;
+            int dont = saveAsMode ? -1 : 1, save = saveAsMode ? 1 : 2;
+            var choice = dlg.Result == save ? SaveChoice.Save : dlg.Result == dont ? SaveChoice.DontSave : SaveChoice.Cancel;
             return (choice, choice == SaveChoice.Save ? chosen : null);
         };
         return d;

@@ -720,6 +720,16 @@ public partial class MainWindow : Window
         rtb.Render(el); SlideDrawing.SavePng(rtb, path);
     }
 
+    /// <summary>Cattura l'intera finestra (ombra e angoli arrotondati compresi) e ne scrive la misura reale in un file accanto.</summary>
+    static void CaptureWindow(Window w, string path)
+    {
+        w.UpdateLayout();
+        var rtb = new RenderTargetBitmap((int)Math.Ceiling(w.ActualWidth), (int)Math.Ceiling(w.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(w); SlideDrawing.SavePng(rtb, path);
+        var body = (FrameworkElement)((Border)w.Content).Child;
+        File.WriteAllText(Path.Combine(Path.GetTempPath(), "pp-dialog-misure.txt"), $"finestra {w.ActualWidth}x{w.ActualHeight}; scheda {((FrameworkElement)w.Content).ActualWidth}x{((FrameworkElement)w.Content).ActualHeight}; contenuto {body.ActualWidth}x{body.ActualHeight}; margine interno {body.Margin.Left}/{body.Margin.Right}");
+    }
+
     public void ScheduleScreenshot(string path, string? mode)
     {
         var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -756,7 +766,7 @@ public partial class MainWindow : Window
                     NewDoc(); _doc!.MarkDirty();
                     var dlg = ThemedDialog.BuildSave(this, null, false, "Presentazione", out _); dlg.Show();
                     var t3 = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
-                    t3.Tick += (_, _) => { t3.Stop(); try { Capture((FrameworkElement)dlg.Content, path); } finally { Application.Current.Shutdown(); } };
+                    t3.Tick += (_, _) => { t3.Stop(); try { CaptureWindow(dlg, path); } finally { Application.Current.Shutdown(); } };
                     t3.Start(); wait = true; return;
                 }
                 if (mode == "sorter") SetSorter(true);
