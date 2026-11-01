@@ -39,4 +39,6 @@ public sealed class DisplayList
     public Dictionary<int, (double Scale, double Reduction)> Fits { get; } = new();
     /// <summary>Riquadri delle forme di primo livello della slide (per selezione e modifica): id → rettangolo.</summary>
     public List<(int Id, RectD Box, bool HasText)> Hits { get; } = new();
+    /// <summary>Celle delle tabelle (per modificarle dalla UI): cornice, riga, colonna, riquadro.</summary>
+    public List<(int FrameId, int Row, int Col, RectD Box)> TableCells { get; } = new();
 }

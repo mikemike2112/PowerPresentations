@@ -17,7 +17,7 @@ public sealed class PptxFormatException : Exception
 /// </summary>
 public sealed partial class PptxDocument : IDisposable
 {
-    readonly MemoryStream _ms;
+    MemoryStream _ms;
     PresentationDocument _doc;
     public string? FilePath { get; private set; }
     public bool Dirty { get; private set; }
@@ -65,6 +65,23 @@ public sealed partial class PptxDocument : IDisposable
     }
 
     public void MarkDirty() => Dirty = true;
+
+    /// <summary>Copia completa dello stato corrente (per annulla/ripristina).</summary>
+    public byte[] Snapshot()
+    {
+        _doc.Save();
+        using var o = new MemoryStream();
+        using (var c = _doc.Clone(o)) { }
+        return o.ToArray();
+    }
+
+    /// <summary>Ripristina uno stato precedente ottenuto con <see cref="Snapshot"/>; i riferimenti a part ottenuti prima non sono più validi.</summary>
+    public void Restore(byte[] state)
+    {
+        var ms = new MemoryStream(); ms.Write(state); ms.Position = 0;
+        var doc = PresentationDocument.Open(ms, true, new OpenSettings { AutoSave = false });
+        _doc.Dispose(); _ms.Dispose(); _doc = doc; _ms = ms; Dirty = true;
+    }
 
     // ---- slide ----
     public SlideIdList? SlideIds => PresentationPart.Presentation!.SlideIdList;

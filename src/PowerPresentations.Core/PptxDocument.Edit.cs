@@ -309,11 +309,52 @@ public sealed partial class PptxDocument
 
     public void SetCellText(int slide, int frameId, int row, int col, string text)
     {
-        var sp = Slide(slide);
-        var gf = sp.Slide!.Descendants<P.GraphicFrame>().FirstOrDefault(g => g.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Id?.Value == (uint)frameId) ?? throw new KeyNotFoundException();
-        var tc = gf.Descendants<A.TableRow>().ElementAt(row).Elements<A.TableCell>().ElementAt(col);
+        var tc = Cell(slide, frameId, row, col);
         var tb = tc.TextBody ?? throw new InvalidOperationException("Cella senza testo.");
         FillBody(tb, text); Dirty = true;
+    }
+
+    public string GetCellText(int slide, int frameId, int row, int col)
+    {
+        var tc = Cell(slide, frameId, row, col);
+        return tc.TextBody == null ? "" : string.Join("\n", tc.TextBody.Elements<A.Paragraph>().Select(p => string.Concat(p.Descendants<A.Text>().Select(t => t.Text))));
+    }
+
+    A.TableCell Cell(int slide, int frameId, int row, int col)
+    {
+        var gf = Slide(slide).Slide!.Descendants<P.GraphicFrame>().FirstOrDefault(g => g.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Id?.Value == (uint)frameId) ?? throw new KeyNotFoundException();
+        return gf.Descendants<A.TableRow>().ElementAt(row).Elements<A.TableCell>().ElementAt(col);
+    }
+
+    static readonly string[] TableFlags = { "firstRow", "lastRow", "firstCol", "lastCol", "bandRow", "bandCol" };
+
+    public bool GetTableFlag(int slide, int frameId, string flag)
+    {
+        if (!TableFlags.Contains(flag)) throw new ArgumentException(flag);
+        var pr = Cell(slide, frameId, 0, 0).Ancestors<A.Table>().First().TableProperties;
+        return pr?.GetAttributes().FirstOrDefault(a => a.LocalName == flag).Value is "1" or "true";
+    }
+
+    /// <summary>Opzioni stile tabella (riga intestazione, righe alternate...).</summary>
+    public void SetTableFlag(int slide, int frameId, string flag, bool on)
+    {
+        if (!TableFlags.Contains(flag)) throw new ArgumentException(flag);
+        var t = Cell(slide, frameId, 0, 0).Ancestors<A.Table>().First();
+        t.TableProperties ??= new A.TableProperties();
+        t.TableProperties.SetAttribute(new OpenXmlAttribute(flag, "", on ? "1" : "0")); Dirty = true;
+    }
+
+    /// <summary>Allineamento dei paragrafi: l, ctr, r, just.</summary>
+    public void SetAlignment(int slide, int id, string algn)
+    {
+        var sh = FindShape(Slide(slide), id) ?? throw new KeyNotFoundException($"Forma {id} non trovata.");
+        if (sh.TextBody == null) return;
+        foreach (var p in sh.TextBody.Elements<A.Paragraph>())
+        {
+            p.ParagraphProperties ??= new A.ParagraphProperties();
+            p.ParagraphProperties.SetAttribute(new OpenXmlAttribute("algn", "", algn));
+        }
+        Dirty = true;
     }
 
     public void DeleteShape(int slide, int id)

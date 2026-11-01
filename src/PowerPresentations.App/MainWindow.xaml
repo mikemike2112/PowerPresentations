@@ -1,106 +1,68 @@
 <Window x:Class="PowerPresentations.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:app="clr-namespace:PowerPresentations.App"
-        Title="PowerPresentations" Width="1360" Height="840" MinWidth="900" MinHeight="560"
+        Title="PowerPresentations" Width="1360" Height="840" MinWidth="980" MinHeight="600"
         Background="{DynamicResource BgBrush}" Foreground="{DynamicResource FgBrush}" Icon="icon.ico"
-        AllowDrop="True">
-    <Grid>
+        AllowDrop="True" FontFamily="Segoe UI">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+    <Grid x:Name="Root" Background="{DynamicResource BgBrush}">
         <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="26"/>
         </Grid.RowDefinitions>
 
-        <TabControl x:Name="Ribbon" Grid.Row="0" Background="Transparent">
-            <TabItem Header="File">
-                <WrapPanel>
-                    <Button Content="Nuova" Click="OnNew"/>
-                    <Button Content="Apri…" Click="OnOpen"/>
-                    <Button Content="Salva" Click="OnSave"/>
-                    <Button Content="Salva con nome…" Click="OnSaveAs"/>
-                    <Button Content="Esporta PDF…" Click="OnExportPdf"/>
-                </WrapPanel>
-            </TabItem>
-            <TabItem Header="Home" IsSelected="True">
-                <WrapPanel>
-                    <Button Content="Nuova slide…" Click="OnNewSlide"/>
-                    <Button Content="Duplica" Click="OnDuplicate"/>
-                    <Button Content="Elimina slide" Click="OnDeleteSlide"/>
-                    <Button Content="Nascondi/mostra" Click="OnToggleHidden"/>
-                    <Rectangle Width="1" Fill="{DynamicResource LineBrush}" Margin="8,2"/>
-                    <Button Content="G" FontWeight="Bold" Click="OnBold" ToolTip="Grassetto"/>
-                    <Button Content="C" FontStyle="Italic" Click="OnItalic" ToolTip="Corsivo"/>
-                    <Button Content="S" Click="OnUnderline" ToolTip="Sottolineato"/>
-                    <Button Content="A+" Click="OnSizeUp" ToolTip="Aumenta dimensione"/>
-                    <Button Content="A−" Click="OnSizeDown" ToolTip="Riduci dimensione"/>
-                    <Button Content="■" Foreground="#ff7a45" Click="OnColor" Tag="ff7a45" ToolTip="Colore arancio"/>
-                    <Button Content="■" Foreground="#4f8cff" Click="OnColor" Tag="4f8cff" ToolTip="Colore blu"/>
-                    <Button Content="■" Foreground="#3ecf8e" Click="OnColor" Tag="3ecf8e" ToolTip="Colore verde"/>
-                    <Button Content="■" Foreground="#c00000" Click="OnColor" Tag="c00000" ToolTip="Colore rosso"/>
-                    <Button Content="■" Foreground="#808080" Click="OnColor" Tag="000000" ToolTip="Colore nero"/>
-                    <Rectangle Width="1" Fill="{DynamicResource LineBrush}" Margin="8,2"/>
-                    <Button Content="Elimina forma" Click="OnDeleteShape"/>
-                </WrapPanel>
-            </TabItem>
-            <TabItem Header="Inserisci">
-                <WrapPanel>
-                    <Button Content="Casella di testo" Click="OnInsertText"/>
-                    <Button Content="Forma…" Click="OnInsertShape"/>
-                    <Button Content="Immagine…" Click="OnInsertPicture"/>
-                    <Button Content="Tabella 3×3" Click="OnInsertTable"/>
-                </WrapPanel>
-            </TabItem>
-            <TabItem Header="Transizioni">
-                <WrapPanel x:Name="TransPanel">
-                    <ToggleButton Content="Nessuna" Tag="none" Click="OnTransition"/>
-                    <ToggleButton Content="Dissolvenza" Tag="fade" Click="OnTransition"/>
-                    <ToggleButton Content="Spingi" Tag="push" Click="OnTransition"/>
-                    <ToggleButton Content="Cancella" Tag="wipe" Click="OnTransition"/>
-                    <ToggleButton Content="Copri" Tag="cover" Click="OnTransition"/>
-                    <ToggleButton Content="Scopri" Tag="pull" Click="OnTransition"/>
-                    <Rectangle Width="1" Fill="{DynamicResource LineBrush}" Margin="8,2"/>
-                    <Button Content="←" Tag="l" Click="OnTransDir" ToolTip="Verso sinistra"/>
-                    <Button Content="→" Tag="r" Click="OnTransDir" ToolTip="Verso destra"/>
-                    <Button Content="↑" Tag="u" Click="OnTransDir" ToolTip="Verso l'alto"/>
-                    <Button Content="↓" Tag="d" Click="OnTransDir" ToolTip="Verso il basso"/>
-                    <Rectangle Width="1" Fill="{DynamicResource LineBrush}" Margin="8,2"/>
-                    <Button Content="Lenta" Tag="slow" Click="OnTransSpeed"/>
-                    <Button Content="Media" Tag="med" Click="OnTransSpeed"/>
-                    <Button Content="Veloce" Tag="fast" Click="OnTransSpeed"/>
-                    <TextBlock x:Name="TransInfo" Margin="12,6" Foreground="{DynamicResource MutedBrush}"/>
-                </WrapPanel>
-            </TabItem>
-            <TabItem Header="Visualizza">
-                <WrapPanel>
-                    <Button Content="Normale" Click="OnNormalView"/>
-                    <Button Content="Sequenza diapositive" Click="OnSorterView"/>
-                    <Button Content="▶ Presenta (F5)" Click="OnPresent"/>
-                    <Button Content="Presenta da questa slide (Maiusc+F5)" Click="OnPresentHere"/>
-                    <Button Content="Vista relatore" Click="OnPresenter"/>
-                    <Button Content="Tema chiaro/scuro" Click="OnTheme"/>
-                </WrapPanel>
-            </TabItem>
-        </TabControl>
-
-        <Grid Grid.Row="1">
+        <!-- barra del titolo personalizzata -->
+        <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Margin="10,0,0,0" x:Name="QuickBar" shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+            <TextBlock x:Name="TitleText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis" FontSize="13"/>
+            <Border Grid.Column="2" Width="460" Height="30" CornerRadius="6" Background="{DynamicResource RibbonBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" VerticalAlignment="Center"
+                    shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                <Grid>
+                    <ContentControl x:Name="SearchIcon" HorizontalAlignment="Left" Margin="8,0,0,0" IsHitTestVisible="False"/>
+                    <TextBox x:Name="Search" Margin="32,0,4,0" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" FontSize="13"
+                             AutomationProperties.Name="Cerca" TextChanged="OnSearchChanged" PreviewKeyDown="OnSearchKey" GotFocus="OnSearchFocus"/>
+                    <TextBlock x:Name="SearchHint" Text="Cerca" Margin="36,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" IsHitTestVisible="False"/>
+                    <Popup x:Name="SearchPopup" PlacementTarget="{Binding ElementName=Search}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True" Width="460">
+                        <Border Background="{DynamicResource RibbonBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="4" MaxHeight="360">
+                            <ListBox x:Name="SearchList" Background="Transparent" BorderThickness="0" PreviewMouseLeftButtonUp="OnSearchPick" Foreground="{DynamicResource FgBrush}"/>
+                        </Border>
+                    </Popup>
+                </Grid>
+            </Border>
+            <StackPanel Grid.Column="4" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True" x:Name="CaptionButtons"/>
+        </Grid>
+
+        <!-- schede + ribbon -->
+        <TabControl x:Name="Ribbon" Grid.Row="1" Background="Transparent" SelectionChanged="OnRibbonTab"/>
+
+        <!-- corpo -->
+        <Grid Grid.Row="2" x:Name="Body">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="230"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="120"/>
+                <RowDefinition x:Name="NotesRow" Height="110"/>
             </Grid.RowDefinitions>
 
-            <ListBox x:Name="Thumbs" Grid.RowSpan="2" Background="{DynamicResource PanelBrush}" BorderThickness="0,0,1,0" BorderBrush="{DynamicResource LineBrush}"
+            <ListBox x:Name="Thumbs" Grid.RowSpan="2" Background="Transparent" BorderThickness="0"
                      SelectionChanged="OnThumbSelected" AllowDrop="True" Drop="OnThumbDrop" DragOver="OnThumbDragOver"
                      PreviewMouseLeftButtonDown="OnThumbMouseDown" PreviewMouseMove="OnThumbMouseMove" ScrollViewer.HorizontalScrollBarVisibility="Disabled" KeyDown="OnThumbKey">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Number}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Top" Margin="2,2,0,0"/>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding Number}" Foreground="{DynamicResource AccentBrush}" FontSize="12" VerticalAlignment="Top" Margin="2,2,0,0"/>
                             <Border Grid.Column="1" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Opacity="{Binding Opacity}">
                                 <Image Source="{Binding Image}" Stretch="Uniform" Width="{Binding Width}"/>
                             </Border>
@@ -115,15 +77,20 @@
                          BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" TextWrapping="Wrap" LostFocus="OnEditorLost" PreviewKeyDown="OnEditorKey"/>
             </Grid>
 
-            <Grid x:Name="NotesArea" Grid.Column="1" Grid.Row="1" Background="{DynamicResource PanelBrush}">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <TextBlock Text="Note del relatore" Foreground="{DynamicResource MutedBrush}" Margin="8,4" FontSize="12"/>
-                <TextBox x:Name="Notes" Grid.Row="1" AcceptsReturn="True" TextWrapping="Wrap" BorderThickness="0,1,0,0" LostFocus="OnNotesLost"/>
+            <Grid x:Name="NotesArea" Grid.Column="1" Grid.Row="1" Background="Transparent">
+                <TextBlock x:Name="NotesHint" Text="Fare clic per inserire le note" Margin="14,8" Foreground="{DynamicResource MutedBrush}" IsHitTestVisible="False" FontSize="14"/>
+                <TextBox x:Name="Notes" Background="Transparent" BorderThickness="0,1,0,0" AcceptsReturn="True" TextWrapping="Wrap" Padding="12,6" FontSize="14"
+                         AutomationProperties.Name="Note del relatore" LostFocus="OnNotesLost" TextChanged="OnNotesChanged"/>
             </Grid>
         </Grid>
 
-        <Border Grid.Row="2" Background="{DynamicResource BgBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="8,3">
-            <TextBlock x:Name="Status" Foreground="{DynamicResource MutedBrush}" FontSize="12"/>
-        </Border>
+        <!-- barra di stato -->
+        <Grid Grid.Row="3" Background="Transparent">
+            <TextBlock x:Name="Status" VerticalAlignment="Center" Margin="12,0" FontSize="12"/>
+            <StackPanel x:Name="StatusRight" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+        </Grid>
+
+        <!-- scheda File a tutta pagina -->
+        <Grid x:Name="Backstage" Grid.Row="1" Grid.RowSpan="3" Visibility="Collapsed" Background="{DynamicResource BgBrush}"/>
     </Grid>
 </Window>
