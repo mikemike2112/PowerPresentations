@@ -57,11 +57,11 @@ try {
     $d = $AE::RootElement.FindAll($TS::Children, (New-Object System.Windows.Automation.PropertyCondition ($AE::ProcessIdProperty), $p.Id))
     $no = $null
     for ($t = 0; $t -lt 10 -and -not $no; $t++) {
-        if ($t -gt 0 -and -not (Find $root 'No')) { $res.closeRetry = $t; Front $h; Click (Find $root 'Chiudi') }; $no = Find $root 'No'; if (-not $no) { foreach ($w in $AE::RootElement.FindAll($TS::Children, [System.Windows.Automation.Condition]::TrueCondition)) { if ($w.Current.ProcessId -eq $p.Id) { $no = Find $w 'No'; if ($no) { break } } } }
+        if ($t -gt 0 -and -not (Find $root 'Non salvare')) { $res.closeRetry = $t; Front $h; Click (Find $root 'Chiudi') }; $no = Find $root 'Non salvare'; if (-not $no) { foreach ($w in $AE::RootElement.FindAll($TS::Children, [System.Windows.Automation.Condition]::TrueCondition)) { if ($w.Current.ProcessId -eq $p.Id) { $no = Find $w 'Non salvare'; if ($no) { break } } } }
         Start-Sleep -Milliseconds 400
     }
     $res.dialogShown = [bool]$no; $res.top = (($AE::RootElement.FindAll($TS::Children, [System.Windows.Automation.Condition]::TrueCondition) | ? { $_.Current.ProcessId -eq $p.Id } | % { $_.Current.Name + '/' + $_.Current.ClassName }) -join ';'); $res.rootChildren = (($root.FindAll($TS::Children, [System.Windows.Automation.Condition]::TrueCondition) | % { $_.Current.ControlType.ProgrammaticName + ':' + $_.Current.Name }) -join ';')
-    for ($t = 0; $no -and $t -lt 4 -and -not $p.HasExited; $t++) { Click $no; [void]$p.WaitForExit(2000) }   # clic reale su No
+    for ($t = 0; $no -and $t -lt 4 -and -not $p.HasExited; $t++) { Click $no; [void]$p.WaitForExit(2000) }   # clic reale su Non salvare (nuova richiesta di salvataggio)
     $res.closed = $p.WaitForExit(10000)
 } finally { if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force } }
 $res | ConvertTo-Json -Compress

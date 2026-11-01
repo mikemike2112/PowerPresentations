@@ -254,13 +254,13 @@ public partial class MainWindow : Window
     void NewDoc()
     {
         try { SetDoc(PptxDocument.New()); }
-        catch (Exception e) when (e is InvalidOperationException or PptxFormatException) { MessageBox.Show(this, e.Message, "Nuova presentazione", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception e) when (e is InvalidOperationException or PptxFormatException) { ThemedDialog.Notify(this, "Nuova presentazione", e.Message, DialogKind.Warning); }
     }
 
     public void OpenFile(string path)
     {
         try { SetDoc(PptxDocument.Open(path)); }
-        catch (PptxFormatException e) { MessageBox.Show(this, e.Message, "Impossibile aprire il file", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (PptxFormatException e) { ThemedDialog.Notify(this, "Impossibile aprire il file", e.Message, DialogKind.Warning); }
     }
 
     void SetDoc(PptxDocument d)
@@ -270,12 +270,13 @@ public partial class MainWindow : Window
         RebuildThumbs(); ShowSlide(0); UpdateTitle();
     }
 
+    /// <summary>Richiesta di salvataggio prima di chiudere, Nuovo o Apri. Ritorna false se l'utente annulla (o il salvataggio fallisce).</summary>
     bool Confirm()
     {
         if (_doc is not { Dirty: true }) return true;
-        var r = MessageBox.Show(this, "Salvare le modifiche alla presentazione?", "PowerPresentations", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (r == MessageBoxResult.Cancel) return false;
-        return r == MessageBoxResult.No || DoSave(false);
+        var (choice, path) = ThemedDialog.AskSave(this, _doc.FilePath, false);
+        if (!SavePlan.Proceeds(choice)) return false;
+        return !SavePlan.Writes(choice) || SaveTo(path!);
     }
 
     void OnClosing(object? s, CancelEventArgs e) { CommitEdit(); SaveNotes(); if (!Confirm()) e.Cancel = true; else _doc?.Dispose(); }
@@ -421,14 +422,19 @@ public partial class MainWindow : Window
         string? path = _doc.FilePath;
         if (saveAs || path == null)
         {
-            var dlg = new SaveFileDialog { Filter = "Presentazione (*.pptx)|*.pptx", FileName = path != null ? Path.GetFileName(path) : "Presentazione.pptx", DefaultExt = ".pptx" };
-            if (dlg.ShowDialog(this) != true) return false;
-            path = dlg.FileName;
+            var (choice, chosen) = ThemedDialog.AskSave(this, path, true);
+            if (!SavePlan.Writes(choice)) return false;
+            path = chosen;
         }
-        try { _doc.SaveAs(path); UpdateTitle(); return true; }
+        return SaveTo(path!);
+    }
+
+    bool SaveTo(string path)
+    {
+        try { _doc!.SaveAs(path); UpdateTitle(); return true; }   // atomico: file temporaneo + sostituzione
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            MessageBox.Show(this, "Salvataggio non riuscito, il file originale non è stato modificato.\n" + ex.Message, "Salva", MessageBoxButton.OK, MessageBoxImage.Error);
+            ThemedDialog.Notify(this, "Salvataggio non riuscito", "Il file originale non è stato modificato.\n" + ex.Message, DialogKind.Error);
             return false;
         }
     }
@@ -441,7 +447,7 @@ public partial class MainWindow : Window
         if (dlg.ShowDialog(this) != true) return;
         try { PdfExporter.Export(_doc, dlg.FileName); Status.Text = "PDF esportato: " + dlg.FileName; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-        { MessageBox.Show(this, "Esportazione PDF non riuscita: " + ex.Message, "Esporta PDF", MessageBoxButton.OK, MessageBoxImage.Error); }
+        { ThemedDialog.Notify(this, "Esportazione PDF non riuscita", ex.Message, DialogKind.Error); }
     }
 
     // ---------- slide ----------
@@ -598,7 +604,7 @@ public partial class MainWindow : Window
             RefreshCurrent(); View.SelectedId = id;
         }
         catch (Exception ex) when (ex is IOException or NotSupportedException or FileFormatException or PptxFormatException or UnauthorizedAccessException)
-        { MessageBox.Show(this, "Immagine non inseribile: " + ex.Message, "Inserisci immagine", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        { ThemedDialog.Notify(this, "Immagine non inseribile", ex.Message, DialogKind.Warning); }
     }
 
     void OnInsertTable(object s, RoutedEventArgs e)
@@ -743,6 +749,15 @@ public partial class MainWindow : Window
                 {
                     for (int i = 0; i < _doc!.Slides.Count; i++) if (_r!.Render(i).TableCells.Count > 0) { ShowSlide(i); break; }
                     var f = View.List!.TableCells.FirstOrDefault(); if (f.FrameId != 0) { View.SelectedId = f.FrameId; OnSelect(f.FrameId); Ribbon.SelectedItem = _tableTab; }
+                }
+                if (mode is "dialog" or "dialog-light")
+                {
+                    if (mode == "dialog-light") _darkSwitch.IsChecked = false;
+                    NewDoc(); _doc!.MarkDirty();
+                    var dlg = ThemedDialog.BuildSave(this, null, false, "Presentazione", out _); dlg.Show();
+                    var t3 = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+                    t3.Tick += (_, _) => { t3.Stop(); try { Capture((FrameworkElement)dlg.Content, path); } finally { Application.Current.Shutdown(); } };
+                    t3.Start(); wait = true; return;
                 }
                 if (mode == "sorter") SetSorter(true);
                 if (mode?.StartsWith("slide") == true && int.TryParse(mode[5..], out var n)) ShowSlide(n - 1);
