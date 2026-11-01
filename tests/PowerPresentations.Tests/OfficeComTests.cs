@@ -67,10 +67,10 @@ public sealed class ComFixture
     }
 }
 
-[CollectionDefinition("OfficeCom", DisableParallelization = true)]
+[CollectionDefinition("Desktop", DisableParallelization = true)]
 public class OfficeComCollection { }
 
-[Collection("OfficeCom"), Trait("Category", "OfficeCom")]
+[Collection("Desktop"), Trait("Category", "OfficeCom")]
 public class OfficeRoundTripTests : IClassFixture<ComFixture>
 {
     readonly ComFixture _f;
@@ -95,7 +95,7 @@ public class OfficeRoundTripTests : IClassFixture<ComFixture>
 }
 
 /// <summary>e. Controllo negativo: il rilevatore DEVE fallire su file volutamente corrotti; senza questo il round-trip non vale.</summary>
-[Collection("OfficeCom"), Trait("Category", "OfficeCom")]
+[Collection("Desktop"), Trait("Category", "OfficeCom")]
 public class OfficeNegativeControlTests
 {
     static void Mutate(string src, string dst, Func<string, byte[], byte[]?> fn)
@@ -167,7 +167,7 @@ public sealed class ComEditFixture
     }
 }
 
-[Collection("OfficeCom"), Trait("Category", "OfficeCom")]
+[Collection("Desktop"), Trait("Category", "OfficeCom")]
 public class OfficeEditTests : IClassFixture<ComEditFixture>
 {
     readonly ComEditFixture _f;

@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace PowerPresentations.Tests;
 
 /// <summary>Prove sulla UI reale (WPF) avviata come processo: UI Automation, input reale del mouse/tastiera, screenshot. Solo processi PowerPresentations.App avviati dal test.</summary>
-[Collection("Ui"), Trait("Category", "Ui")]
+[Collection("Desktop"), Trait("Category", "Ui")]
 public class UiTests
 {
     static string Run(string script, string args, int timeoutMs = 120000)
@@ -82,6 +82,3 @@ public class UiTests
         Assert.True(new FileInfo(Path.Combine(Env.Work, "ui-sorter.png")).Length > 10000);
     }
 }
-
-[CollectionDefinition("Ui", DisableParallelization = true)]
-public class UiCollection { }
