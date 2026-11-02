@@ -54,7 +54,7 @@ public partial class MainWindow : Window
         ("Rettangolo", "rect"), ("Rettangolo arrotondato", "roundRect"), ("Ellisse", "ellipse"), ("Triangolo", "triangle"), ("Triangolo rettangolo", "rtTriangle"),
         ("Rombo", "diamond"), ("Parallelogramma", "parallelogram"), ("Trapezio", "trapezoid"), ("Esagono", "hexagon"), ("Ottagono", "octagon"),
         ("Croce", "plus"), ("Freccia destra", "rightArrow"), ("Freccia sinistra", "leftArrow"), ("Freccia su", "upArrow"), ("Freccia giù", "downArrow"),
-        ("Stella a 5 punte", "star5"), ("Cheuron", "chevron"), ("Pentagono (freccia)", "homePlate")
+        ("Stella a 5 punte", "star5"), ("Chevron", "chevron"), ("Pentagono (freccia)", "homePlate")
     };
 
     public MainWindow()
@@ -564,23 +564,26 @@ public partial class MainWindow : Window
     void Format(Func<TextItem, (bool? b, bool? i, bool? u, double? sz)> f, string? color = null)
     {
         int id = View.SelectedId; if (_doc == null || id == 0) { Status.Text = "Seleziona prima una forma con testo."; return; }
+        if (_doc.TextBodies(_cur, id).Count == 0) { Status.Text = "L'oggetto selezionato non contiene testo."; return; }   // prima di Snap: niente voce di annullamento vuota
         var t = FirstText(id); if (t == null && color == null) { Status.Text = "La forma selezionata non contiene testo."; return; }
         var (b, i, u, sz) = t != null ? f(t) : (null, null, null, null);
         Snap(); _doc.SetFormat(_cur, id, b, i, u, sz, color); RefreshCurrent(); View.SelectedId = id;
     }
 
-    bool HasUnderline(int id) => View.List!.Items.OfType<PathItem>().Any(p => p.ShapeId == id && p.Fill == null && p.Segs.Count == 2 && p.Stroke != null && p.Stroke.Width < 3 && FirstText(id) is { } t && p.Stroke.Color == t.Color);
+    // sottolineatura e dimensione si leggono dal file (non dalla geometria disegnata, né dalla dimensione ridotta da normAutofit)
+    bool IsUnderlined(int id) => _doc!.GetRunState(_cur, id).Underline;
+    double FileSize(TextItem t) => _doc!.GetRunState(_cur, t.ShapeId).SizePt ?? t.Size;
 
     void OnBold(object s, RoutedEventArgs e) => Format(t => (!t.Bold, null, null, null));
     void OnItalic(object s, RoutedEventArgs e) => Format(t => (null, !t.Italic, null, null));
-    void OnUnderline(object s, RoutedEventArgs e) => Format(t => (null, null, !HasUnderline(t.ShapeId), null));
-    void OnSizeUp(object s, RoutedEventArgs e) => Format(t => (null, null, null, Math.Round(t.Size) + 2));
-    void OnSizeDown(object s, RoutedEventArgs e) => Format(t => (null, null, null, Math.Max(6, Math.Round(t.Size) - 2)));
+    void OnUnderline(object s, RoutedEventArgs e) => Format(t => (null, null, !IsUnderlined(t.ShapeId), null));
+    void OnSizeUp(object s, RoutedEventArgs e) => Format(t => (null, null, null, Math.Round(FileSize(t)) + 2));
+    void OnSizeDown(object s, RoutedEventArgs e) => Format(t => (null, null, null, Math.Max(6, Math.Round(FileSize(t)) - 2)));
     void FormatColor(string hex) => Format(_ => (null, null, null, null), hex);
 
     void Align(string algn)
     {
-        int id = View.SelectedId; if (_doc == null || id == 0 || FirstText(id) == null) { Status.Text = "Seleziona prima una forma con testo."; return; }
+        int id = View.SelectedId; if (_doc == null || id == 0 || _doc.TextBodies(_cur, id).Count == 0) { Status.Text = "Seleziona prima una forma con testo."; return; }
         Snap(); _doc.SetAlignment(_cur, id, algn); RefreshCurrent(); View.SelectedId = id;
     }
 
@@ -670,9 +673,10 @@ public partial class MainWindow : Window
     /// <summary>Anteprima: mostra la slide precedente e passa alla corrente con la sua transizione.</summary>
     void OnTransPreview()
     {
-        if (_doc == null || _cur == 0) { Status.Text = "L'anteprima richiede una slide precedente."; return; }
+        int prev = Enumerable.Range(0, _cur).LastOrDefault(i => !_doc!.IsHidden(i), -1);
+        if (_doc == null || prev < 0 || _doc.IsHidden(_cur)) { Status.Text = "L'anteprima richiede una slide precedente visibile."; return; }
         CommitEdit(); SaveNotes();
-        var c = new ShowController(_doc, _r!, _cur - 1);
+        var c = new ShowController(_doc, _r!, prev);
         var show = new PresentationWindow(c) { WindowStyle = WindowStyle.SingleBorderWindow, ResizeMode = ResizeMode.CanResize, Width = 960, Height = 560, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this, Cursor = Cursors.Arrow };
         show.Show();
         var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };

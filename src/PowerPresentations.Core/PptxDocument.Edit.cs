@@ -242,8 +242,7 @@ public sealed partial class PptxDocument
     /// <summary>Formato carattere su tutto il testo della forma.</summary>
     public void SetFormat(int slide, int id, bool? bold = null, bool? italic = null, bool? underline = null, double? sizePt = null, string? colorHex = null)
     {
-        var sh = FindShape(Slide(slide), id) ?? throw new KeyNotFoundException($"Forma {id} non trovata.");
-        if (sh.TextBody == null) return;
+        var bodies = TextBodies(slide, id);
         void Apply(OpenXmlElement rp)
         {
             if (bold != null) rp.SetAttribute(new OpenXmlAttribute("b", "", bold.Value ? "1" : "0"));
@@ -258,9 +257,31 @@ public sealed partial class PptxDocument
                 if (ln != null) ln.InsertAfterSelf(fill); else rp.InsertAt(fill, 0);
             }
         }
-        foreach (var r in sh.TextBody.Descendants<A.Run>()) { r.RunProperties ??= new A.RunProperties { Language = "it-IT" }; Apply(r.RunProperties); }
-        foreach (var e in sh.TextBody.Descendants<A.EndParagraphRunProperties>()) Apply(e);
-        Dirty = true;
+        foreach (var tb in bodies)
+        {
+            foreach (var r in tb.Descendants<A.Run>()) { r.RunProperties ??= new A.RunProperties { Language = "it-IT" }; Apply(r.RunProperties); }
+            foreach (var e in tb.Descendants<A.EndParagraphRunProperties>()) Apply(e);
+        }
+        if (bodies.Count > 0) Dirty = true;
+    }
+
+    /// <summary>Corpi di testo di una forma o, per una tabella, di tutte le celle. Lista vuota se l'oggetto non ha testo (immagine); KeyNotFound se l'id non esiste.</summary>
+    public List<OpenXmlCompositeElement> TextBodies(int slide, int id)
+    {
+        var sp = Slide(slide);
+        if (FindShape(sp, id) is { } sh) return sh.TextBody == null ? new() : new() { sh.TextBody };
+        var gf = sp.Slide!.Descendants<P.GraphicFrame>().FirstOrDefault(g => g.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Id?.Value == (uint)id);
+        if (gf != null) return gf.Descendants<A.TextBody>().Cast<OpenXmlCompositeElement>().ToList();
+        if (sp.Slide.Descendants<P.NonVisualDrawingProperties>().Any(n => n.Id?.Value == (uint)id)) return new();
+        throw new KeyNotFoundException($"Forma {id} non trovata.");
+    }
+
+    /// <summary>Valori scritti nel file sulla prima run: (sottolineato, dimensione in punti). Nulla se non esplicito (ereditato).</summary>
+    public (bool Underline, double? SizePt) GetRunState(int slide, int id)
+    {
+        var r = TextBodies(slide, id).SelectMany(t => t.Descendants<A.Run>()).FirstOrDefault()?.RunProperties;
+        var u = r?.Underline?.Value; var sz = r?.FontSize?.Value;
+        return (u != null && u != A.TextUnderlineValues.None, sz == null ? null : sz.Value / 100.0);
     }
 
     // ---------- inserimento oggetti ----------
@@ -361,9 +382,7 @@ public sealed partial class PptxDocument
     /// <summary>Allineamento dei paragrafi: l, ctr, r, just.</summary>
     public void SetAlignment(int slide, int id, string algn)
     {
-        var sh = FindShape(Slide(slide), id) ?? throw new KeyNotFoundException($"Forma {id} non trovata.");
-        if (sh.TextBody == null) return;
-        foreach (var p in sh.TextBody.Elements<A.Paragraph>())
+        foreach (var p in TextBodies(slide, id).SelectMany(t => t.Elements<A.Paragraph>()))
         {
             p.ParagraphProperties ??= new A.ParagraphProperties();
             p.ParagraphProperties.SetAttribute(new OpenXmlAttribute("algn", "", algn));

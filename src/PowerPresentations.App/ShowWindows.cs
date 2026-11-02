@@ -20,6 +20,8 @@ public sealed class ShowController
     public bool Black { get; private set; }
     public DateTime Started { get; } = DateTime.Now;
     public event Action<int>? Changed; // argomento: posizione precedente
+    /// <summary>Esc: chiude insieme presentazione e vista relatore.</summary>
+    public event Action? EndRequested;
     public int Current => Order[Pos];
     public int? NextIndex => Pos + 1 < Order.Count ? Order[Pos + 1] : null;
 
@@ -50,7 +52,7 @@ public sealed class ShowController
             case System.Windows.Input.Key.Home: Go(0); return true;
             case System.Windows.Input.Key.End: Go(Order.Count - 1); return true;
             case System.Windows.Input.Key.B: case System.Windows.Input.Key.OemPeriod: ToggleBlack(); return true;
-            case System.Windows.Input.Key.Escape: close(); return true;
+            case System.Windows.Input.Key.Escape: if (EndRequested != null) EndRequested.Invoke(); else close(); return true;
         }
         return false;
     }
@@ -74,8 +76,8 @@ public sealed class PresentationWindow : Window
         KeyDown += (_, e) => e.Handled = _c.Key(e.Key, Close);
         MouseLeftButtonDown += (_, _) => _c.Next();
         MouseRightButtonDown += (_, _) => _c.Prev();
-        _c.Changed += OnChanged;
-        Closed += (_, _) => _c.Changed -= OnChanged;
+        _c.Changed += OnChanged; _c.EndRequested += Close;
+        Closed += (_, _) => { _c.Changed -= OnChanged; _c.EndRequested -= Close; };
     }
 
     BitmapSource Render(int index)
@@ -178,7 +180,7 @@ public sealed class PresenterWindow : Window
         var sv = new ScrollViewer { Content = _notes, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }; Grid.SetRow(sv, 2); right.Children.Add(sv);
         Grid.SetColumn(right, 1); g.Children.Add(right); Content = g;
         KeyDown += (_, e) => e.Handled = _c.Key(e.Key, Close);
-        _c.Changed += OnChanged; Closed += (_, _) => { _c.Changed -= OnChanged; _t.Stop(); };
+        _c.Changed += OnChanged; _c.EndRequested += Close; Closed += (_, _) => { _c.Changed -= OnChanged; _c.EndRequested -= Close; _t.Stop(); };
         _t.Tick += (_, _) => _timer.Text = (DateTime.Now - _c.Started).ToString(@"hh\:mm\:ss");
         _t.Start(); _timer.Text = "00:00:00";
         Loaded += (_, _) => Refresh();
