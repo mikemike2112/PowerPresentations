@@ -148,3 +148,13 @@ public class CommandTests
         for (int i = 0; i < r.Slides.Count; i++) Assert.Equal("none", r.GetTransition(i).Kind);
     }
 }
+
+public class SelectLabelTests
+{
+    [Theory, MemberData(nameof(Env.CorpusFiles), MemberType = typeof(Env))]
+    public void ShapeIdsAndLabels_WorkOnEverySlideOfTheCorpus(string name)
+    {
+        using var d = PowerPresentations.Core.PptxDocument.Open(Env.CorpusPath(name));
+        for (int i = 0; i < d.Slides.Count; i++) foreach (var id in d.ShapeIds(i)) Assert.False(string.IsNullOrEmpty(d.ShapeLabel(i, id)));
+    }
+}
