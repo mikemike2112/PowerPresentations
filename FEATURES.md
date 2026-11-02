@@ -44,7 +44,7 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 - [x] P0 Immagini PNG/JPEG/GIF/BMP — idem
 - [x] P0 Tabella (dimensioni libere, stile "Medio 2 – Colore 1") e modifica del testo di cella da API — `OfficeEditTests.TableCellEdit_*`; UI: inserimento 3×3, modifica celle non ancora disponibile da interfaccia
 - [ ] P1 Altre forme predefinite (callout, flowchart, cuore, fulmine… oggi disegnate come rettangolo), connettori con aggancio, linee
-- [ ] P1 Grafico, SmartArt, video/audio, equazioni, WordArt, icone, 3D (si **conservano** nel file; il rendering mostra un segnaposto)
+- [ ] P1 Grafico, SmartArt, video/audio, equazioni, WordArt, icone, 3D (si **conservano** nel file e il rendering mostra un segnaposto: grafico con workbook incorporato e SmartArt provati dopo modifica e salvataggio, `ChartSmartArtTests`)
 - [ ] P1 Commenti (si conservano; non visualizzati né modificabili), collegamenti ipertestuali (disegnati con colore del tema + sottolineatura, non modificabili)
 - [ ] P2 Intestazione/piè di pagina, numero slide (si disegnano se presenti nel file), data, simboli
 

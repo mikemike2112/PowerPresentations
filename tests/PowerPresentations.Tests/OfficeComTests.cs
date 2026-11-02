@@ -174,11 +174,13 @@ public sealed class ComEditFixture
             d.AddPicture(0, Png, 600, 380, 100, 80); var t = d.AddTable(0, 2, 3, 50, 100, 400); d.SetCellText(0, t, 0, 1, "Cella B1");
         });
         Edit("mixed-realistic-1.pptx", "duplicate", d => d.DuplicateSlide(1));
+        Edit("chart-office.pptx", "dupchart", d => { d.DuplicateSlide(0); d.DeleteSlide(0); });   // grafico creato da PowerPoint: la copia deve avere part proprie
+        Edit("chart-office.pptx", "dupchart2", d => d.DuplicateSlide(0));
         Edit("hidden-slide.pptx", "unhide", d => d.SetHidden(1, false));
         Edit("notes-speaker.pptx", "editnotes", d => d.SetNotes(1, "Seconda nota cambiata"));
         Edit("table-merged-cells.pptx", "cell", d => { var gf = new SlideRenderer(d).Render(0).Hits.First(h => h.HasText); d.SetCellText(0, gf.Id, 3, 0, "modificata"); });
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2" }.Select(P));
     }
 }
 
@@ -207,6 +209,13 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         Assert.Contains("Titolo della presentazione", Txt(r, 0));
     }
     [Fact] public void DeleteSlide_WithSections_OfficeOpensClean() { var r = Get("delslide"); Assert.Equal(3, ComRunner.Content(r).GetProperty("slideCount").GetInt32()); Assert.DoesNotContain("Slide 2", string.Join("", Enumerable.Range(0, 3).Select(i => Txt(r, i)))); }
+    [Fact] public void DuplicateSlide_WithChart_OfficeOpens_AndKeepsTheChart()
+    {
+        var r = Get("dupchart2"); Assert.Equal(3, ComRunner.Content(r).GetProperty("slideCount").GetInt32());
+        Assert.Contains("Grafico prova", Txt0(r, 0)); Assert.Contains("Grafico prova", Txt0(r, 1));
+        r = Get("dupchart"); Assert.Equal(2, ComRunner.Content(r).GetProperty("slideCount").GetInt32()); Assert.Contains("Grafico prova", Txt0(r, 0));
+    }
+    static string Txt0(JsonElement r, int slide) => string.Join("|", ComRunner.Slide(r, slide).GetProperty("shapes").EnumerateArray().Select(s => s.GetProperty("name").GetString()));
     [Fact] public void Notes_CreatedByClone_ReadByOffice() => Assert.Equal("Nota scritta dal clone", ComRunner.Slide(Get("notes"), 0).GetProperty("notes").GetString());
     [Fact] public void Notes_EditedByClone_ReadByOffice_OtherNotesIntact()
     {

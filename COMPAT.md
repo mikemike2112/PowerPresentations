@@ -10,7 +10,7 @@ Un file per funzionalità (titolo, 11 layout, master personalizzato, colori/font
 con ritaglio, tabelle e celle unite, note, 6 transizioni, animazioni, slide nascosta, sezioni, sfondi, autofit, gruppi, collegamenti, commenti, piè
 di pagina, layout personalizzato, 4:3, ombre/effetti, WordArt) più due file "misti" realistici.
 
-**Non nel corpus**: grafici (non aggiunti) e SmartArt: su questa installazione `Application.SmartArtLayouts.Count` vale 0, quindi `Shapes.AddSmartArt(SmartArtLayouts.Item(1), …)` fallisce con "Impossibile chiamare un metodo su un'espressione con valore null". Questi oggetti sono comunque conservati dal round-trip (provato con l'elemento sconosciuto/part custom, non con file reali).
+**Non nel corpus**: grafici (non aggiunti) e SmartArt: su questa installazione `Application.SmartArtLayouts.Count` vale 0, quindi `Shapes.AddSmartArt(SmartArtLayouts.Item(1), …)` fallisce con "Impossibile chiamare un metodo su un'espressione con valore null". Questi oggetti sono comunque conservati dal round-trip (provato con part custom e con `ChartSmartArtTests`: file generato con l'SDK con grafico + workbook incorporato e SmartArt a 4 part; dopo modifica e salvataggio le part e il binario incorporato restano identici, senza modifiche il package è identico, l'export PDF non fallisce; non provato con file reali di Office).
 
 ## Round-trip (per ognuno dei 35 file)
 
@@ -66,7 +66,7 @@ sono tutti spiegati da differenze reali osservate guardando le immagini:
 - Slide numero/data: campo `slidenum` calcolato, `datetime` mostra il testo memorizzato.
 - Transizioni: gli effetti p14 (vortice, cubo…) si leggono come "altro" e si riproducono in dissolvenza. Una transizione che l'utente non cambia resta identica (`mc:AlternateContent` e `p14:dur` conservati, test `TransitionDataLossTests`). Se la cambia, il clone riscrive l'`mc:AlternateContent` con la nuova transizione conservando `p14:dur` (o 500/1000/2000 ms se cambia la velocità); si perdono solo gli attributi p14 specifici dell'effetto precedente, e passando a "Nessuna" l'intero blocco viene rimosso.
 - Vista relatore e secondo monitor: logica implementata (presentazione sul secondo schermo, relatore sul primo), **non verificata** (PC con un solo schermo).
-- Duplicazione slide: la copia non ha commenti (le note sì); i commenti dell'originale restano intatti (`CommentsTests`).
+- Duplicazione slide: grafici e SmartArt (con workbook incorporato) vengono copiati in part distinte, non condivise con l'originale (`ChartSmartArtTests`); la copia non ha commenti (le note sì); i commenti dell'originale restano intatti (`CommentsTests`).
 - `.pptm`, `.ppt`, file protetti da password: non si aprono (messaggio chiaro).
 
 ## Finestre di dialogo sgranate (causa reale)
