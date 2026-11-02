@@ -200,8 +200,13 @@ public sealed class ComEditFixture
         Edit("comments.pptx", "commentold", d => d.AddComment(0, "Aggiunto dal clone"));
         Edit("mixed-realistic-1.pptx", "hf", d => d.ApplyHeaderFooter(new HeaderFooter(true, true, false, "02/11/2026", true, "Piè dal clone")));
         Edit("mixed-realistic-1.pptx", "showset", d => d.SetShowSettings(new ShowSettings("kiosk", true, false, false, false, 1, 2)));
+        Edit("title-slide.pptx", "media", d =>
+        {
+            int a = d.AddMedia(0, MediaCommandTests.WriteFile("c.wav", MediaCommandTests.Wav()), Png, 50, 380, 48, 48); d.AddMedia(0, MediaCommandTests.WriteFile("c.mp4", MediaCommandTests.FakeMp4()), Png, 200, 300, 320, 180);
+            d.PasteShapes(d.AddSlide(d.Layouts[1], 0), d.CopyShapes(0, new[] { a }));
+        });
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "hf", "showset" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "hf", "showset", "media" }.Select(P));
     }
 }
 
@@ -304,5 +309,11 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         }
     }
     [Fact] public void ShowSettings_FileOpensInOffice() => Assert.Equal(ComRunner.Content(Get("showset")).GetProperty("slideCount").GetInt32(), ComRunner.Content(_f.R[Path.GetFullPath(_f.P("showset"))]).GetProperty("slideCount").GetInt32());
+    [Fact] public void Media_AreRealOfficeMediaShapes_AlsoAfterPaste()
+    {
+        var r = Get("media");
+        int Media(int slide) => ComRunner.Slide(r, slide).GetProperty("shapes").EnumerateArray().Count(s => s.GetProperty("type").GetInt32() == 16);   // msoMedia
+        Assert.Equal(2, Media(0)); Assert.Equal(1, Media(1));
+    }
     [Fact] public void NewFromTemplate_OpensInOffice() { var r = Get("new"); Assert.Contains("Da modello", Txt(r, 0)); }
 }

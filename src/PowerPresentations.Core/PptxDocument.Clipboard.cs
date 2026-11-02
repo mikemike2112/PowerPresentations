@@ -111,7 +111,7 @@ public sealed partial class PptxDocument
                 else if (sp.DataPartReferenceRelationships.FirstOrDefault(d => d.Id == rid) is { } dr)
                 {
                     using var s = dr.DataPart.GetStream(FileMode.Open, FileAccess.Read); var ms = new MemoryStream(); s.CopyTo(ms);
-                    cp = new ClipPart { Kind = "data", RelType = dr.RelationshipType, ContentType = dr.DataPart.ContentType, Ext = Path.GetExtension(dr.DataPart.Uri.OriginalString), Data = ms.ToArray() };
+                    cp = new ClipPart { Kind = "data", Uri = dr.DataPart.Uri.OriginalString, RelType = dr.RelationshipType, ContentType = dr.DataPart.ContentType, Ext = Path.GetExtension(dr.DataPart.Uri.OriginalString), Data = ms.ToArray() };
                 }
                 if (cp != null) { clip.Parts[rid] = cp; total += Size(cp); }
             }
@@ -149,7 +149,7 @@ public sealed partial class PptxDocument
         foreach (var (crid, child) in c.Children) Rebuild(np, child, crid);
     }
 
-    void BuildPart(SlidePart sp, ClipPart part, string rid)
+    void BuildPart(SlidePart sp, ClipPart part, string rid, Dictionary<string, MediaDataPart> media)
     {
         switch (part.Kind)
         {
@@ -158,8 +158,13 @@ public sealed partial class PptxDocument
                 break;
             case "data":
                 {
-                    var dp = _doc.CreateMediaDataPart(part.ContentType, part.Ext);
-                    using (var s = new MemoryStream(part.Data ?? Array.Empty<byte>())) dp.FeedData(s);
+                    // video/audio e relazione "media" puntano alla stessa part, come in PowerPoint
+                    if (part.Uri == null || !media.TryGetValue(part.Uri, out var dp))
+                    {
+                        dp = _doc.CreateMediaDataPart(part.ContentType, part.Ext);
+                        using (var s = new MemoryStream(part.Data ?? Array.Empty<byte>())) dp.FeedData(s);
+                        if (part.Uri != null) media[part.Uri] = dp;
+                    }
                     if (part.RelType.EndsWith("/video")) sp.AddVideoReferenceRelationship(dp, rid);
                     else if (part.RelType.EndsWith("/audio")) sp.AddAudioReferenceRelationship(dp, rid);
                     else sp.AddMediaReferenceRelationship(dp, rid);
@@ -189,7 +194,7 @@ public sealed partial class PptxDocument
             do n = "rIdPp" + (++counter); while (sp.TryGetPartById(n, out _) || sp.HyperlinkRelationships.Any(h => h.Id == n) || sp.ExternalRelationships.Any(h => h.Id == n) || sp.DataPartReferenceRelationships.Any(h => h.Id == n));
             return map[old] = n;
         }
-        var built = new HashSet<string>();
+        var built = new HashSet<string>(); var mediaParts = new Dictionary<string, MediaDataPart>();
         foreach (var x in xs)
         {
             string firstId = "";
@@ -197,12 +202,12 @@ public sealed partial class PptxDocument
             foreach (var c in x.DescendantsAndSelf().Where(e => e.Name.LocalName == "cNvPr" && e.Name.Namespace == Ns.P)) { var old = (string?)c.Attribute("id") ?? "0"; var nid = (next++).ToString(); if (firstId.Length == 0) firstId = nid; idMap[old] = nid; c.SetAttributeValue("id", nid); }
             foreach (var c in x.Descendants().Where(e => e.Name.LocalName is "stCxn" or "endCxn").ToList()) { if (idMap.TryGetValue((string?)c.Attribute("id") ?? "", out var n)) c.SetAttributeValue("id", n); else c.Remove(); }
             if (shift != 0 && x.DescendantsAndSelf(Ns.A + "off").FirstOrDefault() is { } off) { off.SetAttributeValue("x", (long)off.Attribute("x")! + shift); off.SetAttributeValue("y", (long)off.Attribute("y")! + shift); }
-            foreach (var a in x.DescendantsAndSelf().SelectMany(e => e.Attributes()).Where(a => a.Name.Namespace == Ns.R).ToList())
+            foreach (var a in x.DescendantsAndSelf().SelectMany(e => e.Attributes()).Where(a => a.Name.Namespace == Ns.R && a.Value.Length > 0).ToList())
             {
                 if (clip.Parts.TryGetValue(a.Value, out var part))
                 {
                     var nr = NewRid(a.Value);
-                    if (built.Add(a.Value)) BuildPart(sp, part, nr);
+                    if (built.Add(a.Value)) BuildPart(sp, part, nr, mediaParts);
                     a.Value = nr;
                 }
                 else if (a.Parent!.Name.LocalName is "hlinkClick" or "hlinkHover") a.Parent.Remove();

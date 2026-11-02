@@ -200,7 +200,7 @@ public partial class MainWindow
             Group("Commenti", Large("Commento", "generic", OnComment)),
             Group("Testo", Large("Casella di testo", "textbox", () => OnInsertText(this, new RoutedEventArgs())), Large("Intestazione e piè di pagina", "generic", OnHeaderFooter)),
             Group("Simboli", Large("Simboli", "generic", OnSymbols)),
-            Group("Elementi multimediali", Large("Video", "generic", null), Large("Audio", "generic", null)));
+            Group("Elementi multimediali", Large("Video", "video", () => OnInsertMedia("video")), Large("Audio", "audio", () => OnInsertMedia("audio"))));
 
         var trans = Tab("Transizioni", false,
             Group("Anteprima", Large("Anteprima", "preview", () => OnTransPreview())),
