@@ -24,7 +24,8 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 - [x] P0 Esporta PDF (PDFsharp, slide nascoste escluse come in PowerPoint) — `PdfTests.*`, confronto visivo
 - [ ] P1 Salva come `.pptm`/`.potx`, apertura `.ppt` / `.pptm` (oggi: messaggio di formato non valido)
 - [x] P1 Annulla / Ripristina (pulsanti, Ctrl+Z/Ctrl+Y) — `UiTests.RealInput_UndoRedo_*`
-- [ ] P2 Stampa, Esporta come video/immagini, protezione con password
+- [x] P2 Stampa (una slide per pagina, nascoste escluse; finestra di stampa di Windows) — `AppCommandTests.Print_WritesOnePagePerVisibleSlide_ToXps` (file XPS, nessuna stampante)
+- [ ] P2 Esporta come video/immagini, protezione con password
 
 ## Home
 
@@ -32,10 +33,12 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 - [x] P0 Duplica / Elimina / Nascondi diapositiva (note e sezioni coerenti) — `EditTests.DeleteSlide_*`, `Duplicate_*`, `OfficeEditTests.Unhide_*`
 - [x] P0 Grassetto, Corsivo, Sottolineato, dimensione (A+/A−), colore carattere (tavolozza) — `EditTests.SetShapeText_KeepsRunFormat*` (XML); i pulsanti sono provati a mano
 - [ ] P1 Tipo di carattere, spaziatura caratteri, barrato, apice/pedice (solo rendering: `RendererTests`/confronto visivo, nessun comando)
-- [ ] P1 Elenchi puntati/numerati e allineamento: **disegnati** correttamente (`RendererTests.Bullets_*`, confronto visivo) ma senza comandi di modifica
+- [x] P1 Elenco puntato / numerato (pulsante a due stati, tabelle comprese) e allineamento — `CommandTests.Bullets_*`, `OfficeEditTests.Bullets_ReadByOffice_*`, `UiTests.RealInput_Commands_*`
 - [ ] P1 Layout della slide esistente, Ripristina, Sezioni (le sezioni si conservano e si aggiornano all'eliminazione)
-- [ ] P1 Copia/Incolla/Taglia, Copia formato
-- [ ] P2 Cerca/Sostituisci, Seleziona, Dettatura, Designer
+- [x] P1 Copia/Taglia/Incolla di forme (immagini, grafici con workbook, SmartArt, media e collegamenti copiati con le loro part; anche fra documenti; testo e immagini dagli appunti di Windows), Ctrl+C/X/V, slide copia/taglia/incolla dalle miniature, menu tasto destro — `CommandTests.CopyPaste_*`, `OfficeEditTests.Paste_*`, `UiTests.RealInput_Commands_*`
+- [x] P1 Copia formato (carattere, paragrafo, riempimento e contorno; clic sulla forma di destinazione) — `TextCommandTests.CopyFormat_*`, `OfficeEditTests.CopyFormat_*`
+- [x] P2 Trova e sostituisci (Ctrl+F/H, tutta la presentazione, tabelle comprese), Seleziona (tutto, Ctrl+A, scelta da elenco, Ctrl+clic) — `TextCommandTests.FindReplace_*`, `UiTests.RealInput_Commands_*`
+- [ ] P2 Dettatura, Designer
 
 ## Inserisci
 
@@ -44,9 +47,11 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 - [x] P0 Immagini PNG/JPEG/GIF/BMP — idem
 - [x] P0 Tabella (dimensioni libere, stile "Medio 2 – Colore 1") e modifica del testo di cella da API — `OfficeEditTests.TableCellEdit_*`; UI: inserimento 3×3, modifica celle non ancora disponibile da interfaccia
 - [ ] P1 Altre forme predefinite (callout, flowchart, cuore, fulmine… oggi disegnate come rettangolo), connettori con aggancio, linee
-- [ ] P1 Grafico, SmartArt, video/audio, equazioni, WordArt, icone, 3D (si **conservano** nel file e il rendering mostra un segnaposto: grafico con workbook incorporato e SmartArt provati dopo modifica e salvataggio, `ChartSmartArtTests`)
-- [ ] P1 Commenti (si conservano; non visualizzati né modificabili), collegamenti ipertestuali (disegnati con colore del tema + sottolineatura, non modificabili)
-- [ ] P2 Intestazione/piè di pagina, numero slide (si disegnano se presenti nel file), data, simboli
+- [x] P1 Video e audio incorporati (MP4/MOV/WMV/AVI, MP3/WAV/M4A/WMA, tetto 50 MB, anteprima generica) come forme multimediali vere — `MediaCommandTests.*`, `OfficeEditTests.Media_*` (non riprodotti nel clone)
+- [ ] P1 Grafico, SmartArt, equazioni, WordArt, icone, 3D (si **conservano** nel file e il rendering mostra un segnaposto: grafico con workbook incorporato e SmartArt provati dopo modifica e salvataggio, `ChartSmartArtTests`)
+- [x] P1 Commento (aggiunta di commenti moderni con autore generico «Autore», o classici se la slide ne ha già; elenco dei presenti nel dialogo) — `ReviewCommandTests.Comment_*`, `OfficeEditTests.Comments_ReadByOffice_*`; non modificabili/eliminabili né disegnati sulla slide
+- [x] P1 Collegamento ipertestuale su tutto il testo di una forma (solo http, https, mailto) — `TextCommandTests.Hyperlink_*`, `OfficeEditTests.Hyperlink_*`; selezione parziale di testo non supportata
+- [x] P2 Intestazione e piè di pagina (numero, data fissa/automatica, piè; slide corrente o tutte; solo dove il layout ha il segnaposto), Simboli (elenco di 28) — `ReviewCommandTests.HeaderFooter_*`, `TextCommandTests.AppendText_*`, `OfficeEditTests.HeaderFooter_*`
 
 ## Progettazione (temi e schemi)
 
@@ -64,7 +69,8 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 - [x] P0 Riordino delle slide con drag & drop (tocca solo `sldIdLst`; part, relazioni, note e commenti restano) — `EditTests.Reorder_*`, `UiTests.RealWindow_*` (trascinamento reale col mouse)
 - [x] P0 Note del relatore (lettura, scrittura, creazione di notesMaster/notesSlide) — `OfficeEditTests.Notes_*`
 - [x] P1 Tema scuro (predefinito) / chiaro commutabile — screenshot `docs/app-light.png` (nessun test automatico)
-- [ ] P1 Zoom, righello, griglia, guide, Pagina note, Schema diapositiva
+- [x] P1 Righello e griglia (cm, solo a schermo), Pagina note (immagine + note modificabili, scorri le slide) — `UiTests.RealInput_Commands_*` (griglia/righello)
+- [ ] P1 Zoom, guide, Schema diapositiva
 
 ## Transizioni e presentazione
 
@@ -73,7 +79,8 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 - [x] P0 Modalità presentazione a schermo intero (F5, Maiusc+F5, frecce, Esc, B per schermo nero, salta le slide nascoste) — `UiTests.RealWindow_*` (F5 + freccia reali)
 - [x] P0 Vista relatore (slide corrente, successiva, note, timer, contatore) — `UiTests.PresentationAndPresenterWindows_Render` (rendering; **non verificata** su due monitor: un solo schermo sul PC di sviluppo)
 - [ ] P1 Altri effetti (cubo, vortice, p14…): letti come "altro", riprodotti come dissolvenza; avanzamento automatico, suoni, anteprima
-- [ ] P1 Animazioni degli oggetti (si conservano nel file, non riprodotte), presentazioni personalizzate, Prova intervalli, registrazione
+- [x] P1 Presentazione personalizzata (crea/modifica/elimina/avvia), Prova intervalli (tempi per slide salvati come avanzamento automatico, usato dalla presentazione), Applica a tutte, Imposta presentazione (tipo, ciclo, intervallo di slide, senza narrazione/animazioni, usa intervalli) — `CustomShowTests`, `TimingTests`, `ReviewCommandTests.ShowSettings_*`, `OfficeEditTests.*`
+- [ ] P1 Animazioni degli oggetti (si conservano nel file, non riprodotte), registrazione di narrazione e video (**Registra** resta disattivato: richiede microfono e un formato audio da incorporare), Icone (**Icone** resta disattivato: servirebbe una libreria di icone vettoriali da convertire in geometrie)
 
 ## Revisione / altro
 

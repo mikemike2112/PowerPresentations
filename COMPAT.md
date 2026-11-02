@@ -21,7 +21,7 @@ di pagina, layout personalizzato, 4:3, ombre/effetti, WordArt) più due file "mi
 | c. contenuto identico letto da Office (n. slide/forme, testo, tabelle, note, transizione, nascosta, dimensioni) | **35/35** |
 | d. stessa lista di part e relazioni, ogni part XML semanticamente identica (canonicalizzata), binari identici | **35/35** |
 | e. controllo negativo | vedi sotto |
-| f. test con modifica (12 scenari) | **12/12** letti correttamente da PowerPoint |
+| f. test con modifica (`OfficeEditTests`: testo, riordino, slide, note, transizioni, oggetti, incolla di forme/grafico/media, elenchi, collegamento, sostituzione, copia formato, commento, intestazione e piè di pagina, imposta presentazione, intervalli, presentazione personalizzata, media) | tutti letti correttamente da PowerPoint |
 
 Modifiche verificate in Office: testo cambiato (resto intatto), riordino (note ancora agganciate alla slide giusta), nuova slide da layout,
 eliminazione con sezioni, note create/modificate, transizione, casella/forma/immagine/tabella inserite, duplicazione (con note), slide
@@ -59,7 +59,7 @@ sono tutti spiegati da differenze reali osservate guardando le immagini:
 
 ## Limiti noti (non perdono dati: gli elementi non gestiti si conservano)
 
-- Grafici, SmartArt, OLE, video/audio: segnaposto con etichetta; `p:oleObj` e `mc:AlternateContent` con fallback immagine usano il ramo `Fallback`.
+- Grafici, SmartArt, OLE, video/audio: segnaposto (i video/audio inseriti dal clone sono forme multimediali vere di PowerPoint, con anteprima generica e senza riproduzione nel clone) con etichetta; `p:oleObj` e `mc:AlternateContent` con fallback immagine usano il ramo `Fallback`.
 - Testo: niente giustificazione, niente colonne, niente testo verticale/ruotato di 90°, niente crenatura, niente `a:arcTo` nei freeform, small caps ≈ normale.
 - Gruppi: la rotazione/ribaltamento del gruppo non si applica ai figli (la posizione sì).
 - Immagini: EMF/WMF/SVG senza PNG di ripiego → riquadro grigio; maschere di ritaglio a forma ignorate.
@@ -68,6 +68,17 @@ sono tutti spiegati da differenze reali osservate guardando le immagini:
 - Vista relatore e secondo monitor: logica implementata (presentazione sul secondo schermo, relatore sul primo), **non verificata** (PC con un solo schermo).
 - Duplicazione slide: grafici e SmartArt (con workbook incorporato) vengono copiati in part distinte, non condivise con l'originale (`ChartSmartArtTests`); la copia non ha commenti (le note sì); i commenti dell'originale restano intatti (`CommentsTests`).
 - `.pptm`, `.ppt`, file protetti da password: non si aprono (messaggio chiaro).
+
+## Comandi aggiunti (formato scritto)
+
+- **Appunti**: le forme copiate viaggiano come JSON con XML + part collegate (immagini, grafico con workbook, SmartArt, media, collegamenti); incollando, id forma e relazioni sono rinumerati e le part ricreate (grafico e SmartArt con part proprie). I segnaposto incollati diventano forme libere con posizione esplicita (perdono la formattazione ereditata dal layout). I collegamenti con schemi diversi da http/https/mailto sono scartati; gli appunti sono trattati come input non fidato.
+- **Commento**: moderno (`ppt/comments/modernComment_*.xml`, `ppt/authors.xml`, `p188:commentRel`, `p14:creationId` della slide); l'autore è sempre «Autore» (mai il nome di Windows). Se la slide ha già commenti classici si aggiunge un commento classico.
+- **Intestazione e piè di pagina**: crea i segnaposto `dt`/`ftr`/`sldNum` solo se il layout li prevede.
+- **Imposta presentazione**: `p:showPr` in `presProps.xml` (modalità, ciclo, narrazione/animazioni/intervalli, intervallo `sldRg`). Gli effetti sulla riproduzione del clone: intervallo di slide e ciclo; narrazione assente.
+- **Prova intervalli / Applica a tutte**: attributo `advTm` di `p:transition`, mantenuto anche quando cambia l'effetto (anche dentro `mc:AlternateContent`).
+- **Presentazione personalizzata**: `p:custShowLst`; eliminando una slide la voce esce dall'elenco.
+- **Video/Audio**: `p:pic` con `a:videoFile`/`a:audioFile` e `p14:media`, relazioni video/audio/media sulla stessa part dati; tetto 50 MB (annulla/ripristina copiano il documento in memoria).
+- **Non implementati (restano disattivati)**: Registra (narrazione: microfono + incorporamento audio) e Icone (libreria vettoriale).
 
 ## Finestre di dialogo sgranate (causa reale)
 
