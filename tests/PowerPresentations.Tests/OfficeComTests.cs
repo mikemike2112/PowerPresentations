@@ -206,8 +206,9 @@ public sealed class ComEditFixture
             d.PasteShapes(d.AddSlide(d.Layouts[1], 0), d.CopyShapes(0, new[] { a }));
         });
         Edit("transitions.pptx", "timing", d => { d.SetAdvanceTime(0, 2500); d.SetAdvanceTime(1, 4000); d.SetTransition(1, "fade", null, "fast"); });
+        Edit("mixed-realistic-1.pptx", "cshow", d => { d.SetCustomShow("Breve", new[] { 2, 0 }); d.SetCustomShow("Tutto", new[] { 0, 1, 2 }); });
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "hf", "showset", "media", "timing" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "hf", "showset", "media", "timing", "cshow" }.Select(P));
     }
 }
 
@@ -322,5 +323,6 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         Assert.NotEqual(0, ComRunner.Slide(r, 0).GetProperty("advOn").GetInt32()); Assert.Equal(2.5, ComRunner.Slide(r, 0).GetProperty("advTime").GetDouble());
         Assert.Equal(4.0, ComRunner.Slide(r, 1).GetProperty("advTime").GetDouble()); Assert.NotEqual(0, ComRunner.Slide(r, 1).GetProperty("transition").GetInt32());
     }
+    [Fact] public void CustomShows_ReadByOffice() => Assert.Equal(2, ComRunner.Content(Get("cshow")).GetProperty("customShows").GetInt32());
     [Fact] public void NewFromTemplate_OpensInOffice() { var r = Get("new"); Assert.Contains("Da modello", Txt(r, 0)); }
 }

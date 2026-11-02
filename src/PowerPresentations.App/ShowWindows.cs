@@ -35,13 +35,14 @@ public sealed class ShowController
     public int Current => Order[Pos];
     public int? NextIndex => Pos + 1 < Order.Count ? Order[Pos + 1] : null;
 
-    public ShowController(PptxDocument doc, SlideRenderer r, int start)
+    public ShowController(PptxDocument doc, SlideRenderer r, int start, IReadOnlyList<int>? custom = null)
     {
         Doc = doc; Renderer = r;
         Settings = doc.GetShowSettings();
         // intervallo di Imposta presentazione: vale solo se si parte da dentro l'intervallo
         bool inRange = Settings.From is { } f && Settings.To is { } t && start >= f - 1 && start <= t - 1;
         Order = Enumerable.Range(0, doc.Slides.Count).Where(i => (!doc.IsHidden(i) || i == start) && (!inRange || (i >= Settings.From!.Value - 1 && i <= Settings.To!.Value - 1))).ToList();
+        if (custom != null) { Order = custom.Where(i => i >= 0 && i < doc.Slides.Count && !doc.IsHidden(i)).ToList(); if (Order.Count == 0) Order.Add(custom.FirstOrDefault()); start = Order[0]; }   // presentazione personalizzata: ordine e selezione proprie
         Pos = Math.Max(0, Order.IndexOf(start));
     }
 

@@ -9,7 +9,7 @@ $results = @()
 $ctx = $null
 
 function Read-Pres($pres, $path) {
-    $o = [ordered]@{ slideCount = $pres.Slides.Count; width = $pres.PageSetup.SlideWidth; height = $pres.PageSetup.SlideHeight; slides = @(); sections = $pres.SectionProperties.Count }
+    $o = [ordered]@{ slideCount = $pres.Slides.Count; width = $pres.PageSetup.SlideWidth; height = $pres.PageSetup.SlideHeight; slides = @(); sections = $pres.SectionProperties.Count; customShows = $pres.SlideShowSettings.NamedSlideShows.Count }
     foreach ($s in $pres.Slides) {
         $sl = [ordered]@{ index = $s.SlideIndex; layout = $s.CustomLayout.Name; hidden = [int]$s.SlideShowTransition.Hidden; transition = [int]$s.SlideShowTransition.EntryEffect; notes = ''; shapes = @(); comments = $s.Comments.Count; advOn = [int]$s.SlideShowTransition.AdvanceOnTime; advTime = [double]$s.SlideShowTransition.AdvanceTime }
         try { foreach ($ns in $s.NotesPage.Shapes) { if ($ns.Type -eq 14 -and $ns.PlaceholderFormat.Type -eq 2) { $sl.notes = $ns.TextFrame.TextRange.Text } } } catch {}

@@ -211,7 +211,7 @@ public partial class MainWindow
             Group("Intervallo", Stack(Small("Durata lenta", "slow", () => SetTransSpeed("slow")), Small("Durata media", "med", () => SetTransSpeed("med")), Small("Durata veloce", "fast", () => SetTransSpeed("fast"))), Stack(Small("Applica a tutte", "duplicate", OnApplyTransAll))));
 
         var show = Tab("Presentazione", false,
-            Group("Avvia presentazione", Large("Dall'inizio", "play", () => OnPresent(this, new RoutedEventArgs())), Large("Dalla diapositiva corrente", "play-here", () => OnPresentHere(this, new RoutedEventArgs())), Large("Vista relatore", "presenter", () => OnPresenter(this, new RoutedEventArgs())), Large("Presentazione personalizzata", "generic", null)),
+            Group("Avvia presentazione", Large("Dall'inizio", "play", () => OnPresent(this, new RoutedEventArgs())), Large("Dalla diapositiva corrente", "play-here", () => OnPresentHere(this, new RoutedEventArgs())), Large("Vista relatore", "presenter", () => OnPresenter(this, new RoutedEventArgs())), Large("Presentazione personalizzata", "presenter", OnCustomShows)),
             Group("Imposta", Large("Imposta presentazione", "generic", OnSetupShow), Large("Nascondi diapositiva", "hide", () => OnToggleHidden(this, new RoutedEventArgs())), Large("Prova intervalli", "slow", OnRehearse), Large("Registra", "generic", null)));
 
         var view = Tab("Visualizza", false,
