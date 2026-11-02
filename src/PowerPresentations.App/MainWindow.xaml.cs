@@ -693,10 +693,10 @@ public partial class MainWindow : Window
     void OnPresentHere(object s, RoutedEventArgs e) => StartShow(_cur, false);
     void OnPresenter(object s, RoutedEventArgs e) => StartShow(_cur, true);
 
-    public (PresentationWindow, PresenterWindow?) StartShow(int start, bool withPresenter, bool animate = true)
+    public (PresentationWindow, PresenterWindow?) StartShow(int start, bool withPresenter, bool animate = true, IReadOnlyList<int>? custom = null)
     {
         CommitEdit(); SaveNotes();
-        var c = new ShowController(_doc!, _r!, start);
+        var c = new ShowController(_doc!, _r!, start, custom);
         var show = new PresentationWindow(c) { Animate = animate }; PresenterWindow? pv = null;
         bool multi = GetSystemMetrics(80) > 1;
         Rect? secondary = null;
