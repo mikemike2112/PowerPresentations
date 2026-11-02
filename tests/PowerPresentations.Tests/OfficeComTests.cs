@@ -186,8 +186,11 @@ public sealed class ComEditFixture
             var s2 = d.AddSlide(d.Layouts[1], 0); d.PasteShapes(s2, clip);
         });
         Edit("title-slide.pptx", "pastechart", d => { using var s = PptxDocument.Open(Env.CorpusPath("chart-office.pptx")); d.PasteShapes(0, s.CopyShapes(0, new[] { s.ShapeIds(0).First(i => s.ShapeLabel(0, i).Contains("Grafico")) })); });
+        Edit("textbox-basic.pptx", "bulletnum", d => d.SetBullet(0, FirstText(d, 0), "number"));
+        Edit("textbox-basic.pptx", "bulletdot", d => d.SetBullet(0, FirstText(d, 0), "bullet"));
+        Edit("mixed-realistic-1.pptx", "transall", d => { d.SetTransition(0, "push", "l", "fast"); d.ApplyTransitionToAll(0); });
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall" }.Select(P));
     }
 }
 
@@ -255,6 +258,16 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         var s2 = ComRunner.Slide(Get("pastepic"), 1).GetProperty("shapes").EnumerateArray().ToList();
         Assert.Contains(s2, s => s.GetProperty("type").GetInt32() == 13);
         Assert.Contains(ComRunner.Slide(Get("pastechart"), 0).GetProperty("shapes").EnumerateArray(), s => s.GetProperty("type").GetInt32() == 3);   // msoChart
+    }
+    [Fact] public void Bullets_ReadByOffice_AsNumberedAndUnnumbered()
+    {
+        Assert.Equal(2, ComRunner.Slide(Get("bulletnum"), 0).GetProperty("shapes")[0].GetProperty("bullet").GetInt32());   // ppBulletNumbered
+        Assert.Equal(1, ComRunner.Slide(Get("bulletdot"), 0).GetProperty("shapes")[0].GetProperty("bullet").GetInt32());   // ppBulletUnnumbered
+    }
+    [Fact] public void ApplyTransitionToAll_ReadByOffice_OnEverySlide()
+    {
+        var r = Get("transall");
+        for (int i = 0; i < ComRunner.Content(r).GetProperty("slideCount").GetInt32(); i++) Assert.NotEqual(0, ComRunner.Slide(r, i).GetProperty("transition").GetInt32());
     }
     [Fact] public void NewFromTemplate_OpensInOffice() { var r = Get("new"); Assert.Contains("Da modello", Txt(r, 0)); }
 }

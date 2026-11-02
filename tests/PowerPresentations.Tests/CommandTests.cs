@@ -106,4 +106,45 @@ public class CommandTests
         Assert.DoesNotContain("calc.exe", string.Join("", r.Slides[0].HyperlinkRelationships.Select(h => h.Uri.ToString())));
         Assert.Empty(r.Slides[0].Slide!.Descendants<DocumentFormat.OpenXml.Drawing.HyperlinkOnClick>());
     }
+
+    // ---- elenchi ----
+    [Fact]
+    public void Bullets_Set_Toggle_AndKeepPprChildOrder_Valid()
+    {
+        var src = Env.CorpusPath("paragraph-align-spacing.pptx");
+        using var d = PptxDocument.Open(src);
+        int id = FirstText(d, 0);
+        d.SetBullet(0, id, "bullet"); Assert.Equal("bullet", d.GetBullet(0, id));
+        d.SetBullet(0, id, "number"); Assert.Equal("number", d.GetBullet(0, id));
+        d.SetBullet(0, id, "none"); Assert.Equal("none", d.GetBullet(0, id));
+        d.SetBullet(0, id, "number");
+        var f = Out("bullets"); d.SaveAs(f); Assert.Empty(RoundTripTests.NewErrors(src, f));
+        using var r = PptxDocument.Open(f); Assert.Equal("number", r.GetBullet(0, id));
+        Assert.Throws<ArgumentException>(() => r.SetBullet(0, id, "x"));
+    }
+
+    [Fact]
+    public void Bullets_OnTable_AndPicture()
+    {
+        using var d = PptxDocument.New();
+        int t = d.AddTable(0, 2, 2, 50, 50, 300), pic = d.AddPicture(0, ComEditFixture.Png, 10, 10, 20, 20);
+        d.SetBullet(0, t, "bullet"); d.SetBullet(0, pic, "bullet"); Assert.Equal("bullet", d.GetBullet(0, t)); Assert.Equal("none", d.GetBullet(0, pic));
+        using var r = Reload(d, "bullets-table");
+    }
+
+    // ---- applica a tutte ----
+    [Fact]
+    public void ApplyTransitionToAll_CopiesAlternateContentAndPlainTransitions()
+    {
+        var src = Env.CorpusPath("transitions.pptx");
+        using var d = PptxDocument.Open(src);
+        d.SetTransition(0, "push", "l", "fast");
+        d.ApplyTransitionToAll(0);
+        for (int i = 0; i < d.Slides.Count; i++) { Assert.Equal("push", d.GetTransition(i).Kind); Assert.Equal("fast", d.GetTransition(i).Speed); }
+        var f = Out("trans-all"); d.SaveAs(f); Assert.Empty(RoundTripTests.NewErrors(src, f));
+        using var r = PptxDocument.Open(f);
+        for (int i = 0; i < r.Slides.Count; i++) Assert.Equal("push", r.GetTransition(i).Kind);
+        r.SetTransition(0, "none"); r.ApplyTransitionToAll(0);
+        for (int i = 0; i < r.Slides.Count; i++) Assert.Equal("none", r.GetTransition(i).Kind);
+    }
 }
