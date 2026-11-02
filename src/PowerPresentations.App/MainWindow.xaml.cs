@@ -315,6 +315,7 @@ public partial class MainWindow : Window
 
     void OnSelect(int id)
     {
+        ApplyArmedFormat(id);
         UpdateStatus();
         bool table = IsTable(id);
         _tableTab.Visibility = table ? Visibility.Visible : Visibility.Collapsed;
@@ -733,6 +734,7 @@ public partial class MainWindow : Window
         else if (ctrl && e.Key == Key.Y && !typing) { DoRedo(); e.Handled = true; }
         else if (ctrl && e.Key == Key.E) { Search.Focus(); e.Handled = true; }
         else if (ctrl && e.Key is Key.C or Key.X or Key.V && !typing && _doc != null) { ClipboardKey(e.Key); e.Handled = true; }
+        else if (ctrl && e.Key is Key.F or Key.H && _doc != null) { OnFindReplace(); e.Handled = true; }
         else if (ctrl && e.Key == Key.A && !typing && _doc != null && !_sorter) { SelectAllShapes(); e.Handled = true; }
         else if (e.Key == Key.Delete && View.IsKeyboardFocused && View.SelectedIds.Count > 0) { OnDeleteShape(this, e); e.Handled = true; }
         else if (View.IsKeyboardFocused && e.Key == Key.PageDown && _doc != null) { ShowSlide(_cur + 1); e.Handled = true; }

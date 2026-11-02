@@ -189,8 +189,15 @@ public sealed class ComEditFixture
         Edit("textbox-basic.pptx", "bulletnum", d => d.SetBullet(0, FirstText(d, 0), "number"));
         Edit("textbox-basic.pptx", "bulletdot", d => d.SetBullet(0, FirstText(d, 0), "bullet"));
         Edit("mixed-realistic-1.pptx", "transall", d => { d.SetTransition(0, "push", "l", "fast"); d.ApplyTransitionToAll(0); });
+        Edit("textbox-basic.pptx", "hlink", d => d.SetHyperlink(0, FirstText(d, 0), "https://example.org/pagina"));
+        Edit("textbox-basic.pptx", "replace", d => { d.ReplaceAll("testo", "TESTO NUOVO"); d.AppendText(0, FirstText(d, 0), "€"); });
+        Edit("shape-fills-lines.pptx", "copyfmt", d =>
+        {
+            int a = d.AddShape(0, "rect", 10, 10, 100, 50, "origine"), b = d.AddShape(0, "ellipse", 200, 10, 100, 50, "destinazione");
+            d.SetFormat(0, a, bold: true, sizePt: 28, colorHex: "FF0000"); d.ApplyFormat(0, b, d.CopyFormat(0, a));
+        });
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt" }.Select(P));
     }
 }
 
@@ -269,5 +276,15 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         var r = Get("transall");
         for (int i = 0; i < ComRunner.Content(r).GetProperty("slideCount").GetInt32(); i++) Assert.NotEqual(0, ComRunner.Slide(r, i).GetProperty("transition").GetInt32());
     }
+    [Fact] public void Hyperlink_ReadByOffice_AsRunLink()
+    {
+        var first = ComRunner.Slide(Get("hlink"), 0).GetProperty("shapes").EnumerateArray().First(s => s.TryGetProperty("link", out var l) && l.GetString() != "");
+        Assert.Equal("https://example.org/pagina", first.GetProperty("link").GetString());
+    }
+    [Fact] public void ReplaceAndSymbol_ReadByOffice()
+    {
+        Assert.Contains("TESTO NUOVO", Txt(Get("replace"), 0)); Assert.Contains("€", Txt(Get("replace"), 0));
+    }
+    [Fact] public void CopyFormat_ReadByOffice_KeepsTextOfTarget() => Assert.Contains("destinazione", Txt(Get("copyfmt"), 0));
     [Fact] public void NewFromTemplate_OpensInOffice() { var r = Get("new"); Assert.Contains("Da modello", Txt(r, 0)); }
 }
