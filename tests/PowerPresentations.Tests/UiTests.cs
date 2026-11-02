@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 
 namespace PowerPresentations.Tests;
@@ -177,4 +177,33 @@ public class UiTests : IClassFixture<UiLockFixture>
         using (var d = Core.PptxDocument.Open(Path.Combine(work, "trans.pptx"))) for (int i = 0; i < d.Slides.Count; i++) Assert.Equal("fade", d.GetTransition(i).Kind);   // Applica a tutte
         Assert.True(r.GetProperty("videoEnabled").GetBoolean());
     }
+
+    [Fact]
+    public void RealInput_CommentsPane_ListEditDelete_OneCtrlZ_SlideSwitch()
+    {
+        var work = Directory.CreateDirectory(Path.Combine(Env.Work, "ui-comments")).FullName; var shots = Directory.CreateDirectory(Path.Combine(work, "shots")).FullName;
+        var src = Path.Combine(work, "in.pptx");
+        using (var d = Core.PptxDocument.Open(Env.CorpusPath("mixed-realistic-1.pptx"))) { d.AddComment(0, "Primo"); d.AddComment(0, "Secondo"); CommentEditTests.AddReply(d, 0, "0", "Risposta"); d.SaveAs(src); }
+        var orig = PptxComments(src);
+        var json = Run("ui-comments.ps1", $"-Src \"{src}\" -Work \"{work}\" -Shots \"{shots}\"", 240000).Trim().Split((char)10).Last().Trim();
+        using var j = JsonDocument.Parse(json); var r = j.RootElement;
+        Assert.False(r.TryGetProperty("error", out var err), json + " :: " + err);
+        Assert.False(r.GetProperty("paneBefore").GetBoolean());                                   // riquadro chiuso all'avvio
+        Assert.Equal(3, r.GetProperty("listedButtons").GetInt32());                               // Commento apre il riquadro: commento, risposta, commento
+        foreach (var t in new[] { "Primo", "Risposta", "Secondo", "Autore" }) Assert.Contains(t, r.GetProperty("listedTexts").GetString());
+        var ed = PptxComments(Path.Combine(work, "edited.pptx"));                                 // Modifica con clic e tastiera reali
+        Assert.Equal(new[] { "Primo", "Risposta", "Secondo modificato" }, ed.Select(c => c.Text));
+        Assert.Equal(orig.Select(c => (c.Author, c.Created, c.Id)), ed.Select(c => (c.Author, c.Created, c.Id)));   // autore e data originali
+        Assert.True(r.GetProperty("confirmShown").GetBoolean());                                  // conferma perché ha una risposta
+        Assert.Equal(1, r.GetProperty("afterDeleteButtons").GetInt32());
+        Assert.Equal(new[] { "Secondo modificato" }, PptxComments(Path.Combine(work, "deleted.pptx")).Select(c => c.Text));   // commento e risposta spariti
+        Assert.Equal(3, r.GetProperty("afterUndoButtons").GetInt32());                            // un solo Ctrl+Z
+        Assert.Equal(new[] { "Primo", "Risposta", "Secondo modificato" }, PptxComments(Path.Combine(work, "undone.pptx")).Select(c => c.Text));
+        Assert.Equal(0, r.GetProperty("otherSlideButtons").GetInt32());                           // altra slide: il riquadro si aggiorna
+        Assert.Contains("Nessun commento", r.GetProperty("otherSlideTexts").GetString());
+        Assert.Equal(3, r.GetProperty("backButtons").GetInt32());
+        foreach (var n in new[] { "commenti-riquadro", "commenti-dopo-elimina", "commenti-altra-slide" }) Assert.True(new FileInfo(Path.Combine(shots, n + ".png")).Length > 8000, n);
+    }
+
+    static IReadOnlyList<Core.CommentInfo> PptxComments(string f) { using var d = Core.PptxDocument.Open(f); return d.GetComments(0); }
 }
