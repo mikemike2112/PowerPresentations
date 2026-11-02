@@ -186,7 +186,7 @@ public partial class MainWindow
                 Row(TextBtn("A", "Colore carattere arancio", () => FormatColor("ff7a45"), null, null, false, "ff7a45"), TextBtn("A", "Colore carattere blu", () => FormatColor("4f8cff"), null, null, false, "4f8cff"), TextBtn("A", "Colore carattere verde", () => FormatColor("3ecf8e"), null, null, false, "3ecf8e"),
                     TextBtn("A", "Colore carattere rosso", () => FormatColor("c00000"), null, null, false, "c00000"), TextBtn("A", "Colore carattere nero", () => FormatColor("000000"), null, null, false, "000000")))),
             Group("Paragrafo", Stack(
-                Row(Small("Elenco puntato", "bullets", null, true), Small("Elenco numerato", "numbers", null, true)),
+                Row(Small("Elenco puntato", "bullets", () => Bullet("bullet"), true), Small("Elenco numerato", "numbers", () => Bullet("number"), true)),
                 Row(Small("Allinea a sinistra", "align-l", () => Align("l"), true), Small("Allinea al centro", "align-c", () => Align("ctr"), true), Small("Allinea a destra", "align-r", () => Align("r"), true), Small("Giustifica", "align-j", () => Align("just"), true)))),
             Group("Disegno", Large("Forme", "shapes", () => OnInsertShape(this, new RoutedEventArgs())), Stack(Small("Elimina forma", "trash", () => OnDeleteShape(this, new RoutedEventArgs())))),
             Group("Modifica", Stack(Small("Trova e sostituisci", "search", null), Small("Seleziona", "generic", OnSelectMenu))));
@@ -208,7 +208,7 @@ public partial class MainWindow
                 LargeToggle("Nessuna", "tr-none", () => SetTrans("none")), LargeToggle("Dissolvenza", "tr-fade", () => SetTrans("fade")), LargeToggle("Spingi", "tr-push", () => SetTrans("push")),
                 LargeToggle("Cancella", "tr-wipe", () => SetTrans("wipe")), LargeToggle("Copri", "tr-cover", () => SetTrans("cover")), LargeToggle("Scopri", "tr-pull", () => SetTrans("pull"))),
             Group("Opzioni effetto", Stack(Row(Small("Verso sinistra", "dir-l", () => SetTransDir("l"), true), Small("Verso destra", "dir-r", () => SetTransDir("r"), true)), Row(Small("Verso l'alto", "dir-u", () => SetTransDir("u"), true), Small("Verso il basso", "dir-d", () => SetTransDir("d"), true)))),
-            Group("Intervallo", Stack(Small("Durata lenta", "slow", () => SetTransSpeed("slow")), Small("Durata media", "med", () => SetTransSpeed("med")), Small("Durata veloce", "fast", () => SetTransSpeed("fast"))), Stack(Small("Applica a tutte", "duplicate", null))));
+            Group("Intervallo", Stack(Small("Durata lenta", "slow", () => SetTransSpeed("slow")), Small("Durata media", "med", () => SetTransSpeed("med")), Small("Durata veloce", "fast", () => SetTransSpeed("fast"))), Stack(Small("Applica a tutte", "duplicate", OnApplyTransAll))));
 
         var show = Tab("Presentazione", false,
             Group("Avvia presentazione", Large("Dall'inizio", "play", () => OnPresent(this, new RoutedEventArgs())), Large("Dalla diapositiva corrente", "play-here", () => OnPresentHere(this, new RoutedEventArgs())), Large("Vista relatore", "presenter", () => OnPresenter(this, new RoutedEventArgs())), Large("Presentazione personalizzata", "generic", null)),

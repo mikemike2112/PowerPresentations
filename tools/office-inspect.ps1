@@ -16,6 +16,7 @@ function Read-Pres($pres, $path) {
         foreach ($sh in $s.Shapes) {
             $e = [ordered]@{ name = $sh.Name; type = [int]$sh.Type; text = ''; table = $null; l = [math]::Round($sh.Left, 1); t = [math]::Round($sh.Top, 1); w = [math]::Round($sh.Width, 1); h = [math]::Round($sh.Height, 1) }
             try { if ($sh.HasTextFrame -ne 0 -and $sh.TextFrame.HasText -ne 0) { $e.text = $sh.TextFrame.TextRange.Text } } catch {}
+            try { if ($sh.HasTextFrame -ne 0 -and $sh.TextFrame.HasText -ne 0) { $e.bullet = [int]$sh.TextFrame.TextRange.Paragraphs(1).ParagraphFormat.Bullet.Type } } catch {}
             try { if ($sh.HasTable -ne 0) { $tb = $sh.Table; $cells = @(); for ($r = 1; $r -le $tb.Rows.Count; $r++) { for ($c = 1; $c -le $tb.Columns.Count; $c++) { $cells += $tb.Cell($r, $c).Shape.TextFrame.TextRange.Text } }; $e.table = [ordered]@{ rows = $tb.Rows.Count; cols = $tb.Columns.Count; cells = $cells } } } catch {}
             try { if ($sh.Type -eq 6) { $e.group = $sh.GroupItems.Count } } catch {}
             $sl.shapes += $e

@@ -179,4 +179,22 @@ public partial class MainWindow
     }
 
     static void AutomationProperties_Name(DependencyObject d, string name) => System.Windows.Automation.AutomationProperties.SetName(d, name);
+
+    // ---------- elenchi ----------
+    /// <summary>Elenco puntato/numerato: se tutti i paragrafi lo hanno già, lo toglie (ponytail: un elenco ereditato dal layout conta come "non impostato" → un clic lo rende esplicito).</summary>
+    void Bullet(string kind)
+    {
+        int id = View.SelectedId;
+        if (_doc == null || id == 0 || _doc.TextBodies(_cur, id).Count == 0) { Status.Text = "Seleziona prima una forma con testo."; return; }
+        var target = _doc.GetBullet(_cur, id) == kind ? "none" : kind;
+        Snap(); _doc.SetBullet(_cur, id, target); RefreshCurrent(); View.SelectedId = id;
+    }
+
+    // ---------- transizioni ----------
+    void OnApplyTransAll()
+    {
+        if (_doc == null) return;
+        if (_doc.Slides.Count < 2) { Status.Text = "C'è una sola slide."; return; }
+        Snap(); _doc.ApplyTransitionToAll(_cur); RebuildThumbs(); UpdateTitle(); Status.Text = "Transizione applicata a tutte le slide.";
+    }
 }
