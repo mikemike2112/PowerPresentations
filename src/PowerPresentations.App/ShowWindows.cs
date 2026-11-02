@@ -25,6 +25,13 @@ public sealed class ShowController
     public event Action<int>? Changed; // argomento: posizione precedente
     /// <summary>Esc: chiude insieme presentazione e vista relatore.</summary>
     public event Action? EndRequested;
+    /// <summary>Avanzamento automatico con gli intervalli salvati (Imposta presentazione: "Usa intervalli salvati").</summary>
+    public bool AutoAdvance { get; set; } = true;
+    /// <summary>Prova intervalli: registra il tempo passato su ogni slide, nessun avanzamento automatico.</summary>
+    public bool Rehearse { get; set; }
+    public Dictionary<int, TimeSpan> Spent { get; } = new();
+    DateTime _stamp = DateTime.Now;
+    System.Windows.Threading.DispatcherTimer? _adv;
     public int Current => Order[Pos];
     public int? NextIndex => Pos + 1 < Order.Count ? Order[Pos + 1] : null;
 
@@ -42,11 +49,26 @@ public sealed class ShowController
     {
         pos = Math.Clamp(pos, 0, Order.Count - 1);
         if (pos == Pos && !Black) return false;
-        var old = Pos; Pos = pos; Black = false; Changed?.Invoke(old); return true;
+        var old = Pos; Account(Order[old]); Pos = pos; Black = false; Changed?.Invoke(old); Schedule(); return true;
+    }
+
+    void Account(int slide) { var now = DateTime.Now; Spent[slide] = Spent.GetValueOrDefault(slide) + (now - _stamp); _stamp = now; }
+
+    /// <summary>Chiude la misura del tempo sull'ultima slide (da chiamare alla chiusura).</summary>
+    public void Finish() { _adv?.Stop(); Account(Current); }
+
+    /// <summary>Avvia il conteggio per la slide corrente: l'avanzamento automatico, se la slide ha un intervallo.</summary>
+    public void Schedule()
+    {
+        _adv?.Stop(); _adv = null; _stamp = Rehearse ? _stamp : DateTime.Now;
+        if (Rehearse || !AutoAdvance || !Settings.UseTimings || Black || Doc.GetAdvanceTime(Current) is not { } ms) return;
+        _adv = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Math.Max(100, ms)) };
+        _adv.Tick += (_, _) => { _adv?.Stop(); Next(); };
+        _adv.Start();
     }
     public bool Next() => Pos + 1 < Order.Count ? Go(Pos + 1) : Loop && Order.Count > 1 && Go(0);   // ponytail: kiosk = solo ciclo, i clic avanzano comunque
     public bool Prev() => Pos > 0 && Go(Pos - 1);
-    public void ToggleBlack() { Black = !Black; Changed?.Invoke(Pos); }
+    public void ToggleBlack() { Black = !Black; Changed?.Invoke(Pos); Schedule(); }
 
     /// <summary>Tasti comuni a presentazione e vista relatore. Ritorna true se gestito.</summary>
     public bool Key(Key k, Action close)
@@ -77,13 +99,23 @@ public sealed class PresentationWindow : Window
         _c = c;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; Background = Brushes.Black; Cursor = Cursors.None; Title = "Presentazione";
         _root.Children.Add(_back); _root.Children.Add(_front); Content = _root;
+        if (_c.Rehearse)
+        {
+            var t = new TextBlock { Foreground = Brushes.White, FontSize = 22, Margin = new Thickness(14), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Background = new SolidColorBrush(Color.FromArgb(150, 0, 0, 0)), Padding = new Thickness(8, 3, 8, 3) };
+            System.Windows.Automation.AutomationProperties.SetName(t, "Tempo sulla slide");
+            _root.Children.Add(t); Panel.SetZIndex(t, 10);
+            var tm = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            DateTime start = DateTime.Now; int shown = -1;
+            tm.Tick += (_, _) => { if (shown != _c.Pos) { shown = _c.Pos; start = DateTime.Now; } t.Text = $"Prova intervalli  {(DateTime.Now - start).ToString(@"mm\:ss")}  ·  slide {_c.Pos + 1}/{_c.Order.Count}"; };
+            tm.Start(); Closed += (_, _) => tm.Stop();
+        }
         _root.ClipToBounds = true;
-        Loaded += (_, _) => { _cur = Render(_c.Current); _back.Source = _cur; };
+        Loaded += (_, _) => { _cur = Render(_c.Current); _back.Source = _cur; _c.Schedule(); };
         KeyDown += (_, e) => e.Handled = _c.Key(e.Key, Close);
         MouseLeftButtonDown += (_, _) => _c.Next();
         MouseRightButtonDown += (_, _) => _c.Prev();
         _c.Changed += OnChanged; _c.EndRequested += Close;
-        Closed += (_, _) => { _c.Changed -= OnChanged; _c.EndRequested -= Close; };
+        Closed += (_, _) => { _c.Changed -= OnChanged; _c.EndRequested -= Close; _c.Finish(); };
     }
 
     BitmapSource Render(int index)

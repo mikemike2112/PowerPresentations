@@ -439,25 +439,28 @@ public sealed partial class PptxDocument
     {
         var sl = Slide(i).Slide!;
         // PowerPoint scrive la transizione in mc:AlternateContent con p14:dur (durata in ms): la durata esistente si conserva se la velocità non cambia
-        string? oldDur = null, oldSpd = null;
+        string? oldDur = null, oldSpd = null, advTm = null, advClick = null;
         foreach (var ac in sl.Elements<AlternateContent>().Where(a => a.OuterXml.Contains("transition")).ToList())
         {
-            var m = System.Text.RegularExpressions.Regex.Match(ac.OuterXml, "p14:dur=\"(\\d+)\"");
+            var m = System.Text.RegularExpressions.Regex.Match(ac.OuterXml, @"p14:dur=""(\d+)""");
             if (m.Success) oldDur = m.Groups[1].Value;
-            oldSpd = System.Text.RegularExpressions.Regex.Match(ac.OuterXml, "<p:transition[^>]* spd=\"(\\w+)\"").Groups[1].Value;
+            oldSpd = System.Text.RegularExpressions.Regex.Match(ac.OuterXml, @"<p:transition[^>]* spd=""(\w+)""").Groups[1].Value;
+            if (ac.Descendants<P.Transition>().FirstOrDefault() is { } ot) { advTm ??= ot.AdvanceAfterTime?.Value; advClick ??= ot.AdvanceOnClick?.Value is { } b ? (b ? "1" : "0") : null; }
             ac.Remove();
         }
-        foreach (var t in sl.Elements<P.Transition>().ToList()) t.Remove();
-        if (kind != "none")
+        foreach (var t in sl.Elements<P.Transition>().ToList()) { advTm ??= t.AdvanceAfterTime?.Value; advClick ??= t.AdvanceOnClick?.Value is { } b ? (b ? "1" : "0") : null; t.Remove(); }
+        // avanzamento automatico (Prova intervalli) e clic: restano quando cambia l'effetto
+        string adv = (advTm != null ? $" advTm=\"{advTm}\"" : "") + (advClick != null ? $" advClick=\"{advClick}\"" : "");
+        if (kind != "none" || adv.Length > 0)
         {
-            string inner = dir != null && kind is "push" or "wipe" or "cover" or "pull" or "split" or "randomBar" ? $"<p:{kind} dir=\"{dir}\"/>" : $"<p:{kind}/>";
+            string inner = kind == "none" ? "" : dir != null && kind is "push" or "wipe" or "cover" or "pull" or "split" or "randomBar" ? $"<p:{kind} dir=\"{dir}\"/>" : $"<p:{kind}/>";
             OpenXmlElement tr;
-            if (oldDur != null)
+            if (oldDur != null && kind != "none")
             {
                 var dur = oldSpd == speed ? oldDur : speed switch { "fast" => "500", "slow" => "2000", _ => "1000" };
-                tr = new AlternateContent($"<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" {NsDecl}><mc:Choice xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" Requires=\"p14\"><p:transition spd=\"{speed}\" p14:dur=\"{dur}\">{inner}</p:transition></mc:Choice><mc:Fallback><p:transition spd=\"{speed}\">{inner}</p:transition></mc:Fallback></mc:AlternateContent>");
+                tr = new AlternateContent($"<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" {NsDecl}><mc:Choice xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" Requires=\"p14\"><p:transition spd=\"{speed}\"{adv} p14:dur=\"{dur}\">{inner}</p:transition></mc:Choice><mc:Fallback><p:transition spd=\"{speed}\"{adv}>{inner}</p:transition></mc:Fallback></mc:AlternateContent>");
             }
-            else tr = new P.Transition($"<p:transition {NsDecl} spd=\"{speed}\">{inner}</p:transition>");
+            else tr = new P.Transition($"<p:transition {NsDecl}{(kind == "none" ? "" : $" spd=\"{speed}\"")}{adv}>{inner}</p:transition>");
             var anchor = (OpenXmlElement?)sl.GetFirstChild<P.ColorMapOverride>() ?? sl.CommonSlideData;
             anchor!.InsertAfterSelf(tr);
         }

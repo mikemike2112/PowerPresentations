@@ -32,6 +32,12 @@ public partial class App : Application
             catch (Exception ex) { Console.Error.WriteLine(ex.Message); Shutdown(1); }
             return;
         }
+        if (a.Length >= 3 && a[0] == "--print-xps")
+        {
+            try { using var d = PptxDocument.Open(a[1]); Console.Out.WriteLine(SlidePrint.WriteXps(d, a[2])); Shutdown(0); }
+            catch (Exception ex) { Console.Error.WriteLine(ex.Message); Shutdown(1); }
+            return;
+        }
         if (a.Length >= 4 && a[0] == "--transition-frames")
         {
             // test della riproduzione: cattura la finestra di presentazione prima, a metà e dopo il passaggio alla slide a[2] (indice da 0)

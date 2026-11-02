@@ -212,13 +212,12 @@ public partial class MainWindow
 
         var show = Tab("Presentazione", false,
             Group("Avvia presentazione", Large("Dall'inizio", "play", () => OnPresent(this, new RoutedEventArgs())), Large("Dalla diapositiva corrente", "play-here", () => OnPresentHere(this, new RoutedEventArgs())), Large("Vista relatore", "presenter", () => OnPresenter(this, new RoutedEventArgs())), Large("Presentazione personalizzata", "generic", null)),
-            Group("Imposta", Large("Imposta presentazione", "generic", OnSetupShow), Large("Nascondi diapositiva", "hide", () => OnToggleHidden(this, new RoutedEventArgs())), Large("Prova intervalli", "generic", null), Large("Registra", "generic", null)));
+            Group("Imposta", Large("Imposta presentazione", "generic", OnSetupShow), Large("Nascondi diapositiva", "hide", () => OnToggleHidden(this, new RoutedEventArgs())), Large("Prova intervalli", "slow", OnRehearse), Large("Registra", "generic", null)));
 
         var view = Tab("Visualizza", false,
-            Group("Visualizzazioni presentazione", Large("Normale", "normal", () => SetSorter(false)), Large("Sequenza diapositive", "sorter", () => SetSorter(true)), Large("Pagina note", "notes", null)),
-            Group("Mostra", Stack(CheckOpt("Note", () => _showNotes, v => SetNotesVisible(v)), CheckOpt("Righello", () => false, _ => { }), CheckOpt("Griglia", () => false, _ => { }))),
+            Group("Visualizzazioni presentazione", Large("Normale", "normal", () => SetSorter(false)), Large("Sequenza diapositive", "sorter", () => SetSorter(true)), Large("Pagina note", "notes", OnNotesPage)),
+            Group("Mostra", Stack(CheckOpt("Note", () => _showNotes, v => SetNotesVisible(v)), CheckOpt("Righello", () => View.ShowRuler, v => View.ShowRuler = v), CheckOpt("Griglia", () => View.ShowGrid, v => View.ShowGrid = v))),
             Group("Zoom", Large("Adatta alla finestra", "fit", () => SetZoom(100))));
-        foreach (var c in _tableChecks.Where(c => (string?)AutomationProperties.GetName(c) is "Righello" or "Griglia")) { c.IsEnabled = false; c.ToolTip = NotYet; }
 
         _darkSwitch = new ToggleButton { Style = (Style)FindResource("SwitchToggle"), IsChecked = _settings.Dark, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         AutomationProperties.SetName(_darkSwitch, "Modalità scura");

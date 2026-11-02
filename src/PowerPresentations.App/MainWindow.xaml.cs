@@ -194,7 +194,7 @@ public partial class MainWindow : Window
         var back = M("Indietro", "back", null); back.IsEnabled = true; back.ToolTip = null;
         back.Click += (_, _) => { ShowBackstage(false); Ribbon.SelectedItem = _lastTab ?? _homeTab; };
         M("Nuovo", "new", () => OnNew(this, new RoutedEventArgs())); M("Apri", "open", () => OnOpen(this, new RoutedEventArgs())); M("Salva", "save", () => DoSave(false)); M("Salva con nome", "save", () => DoSave(true));
-        M("Esporta come PDF", "pdf", () => OnExportPdf(this, new RoutedEventArgs())); M("Stampa", "generic", null);
+        M("Esporta come PDF", "pdf", () => OnExportPdf(this, new RoutedEventArgs())); M("Stampa", "generic", OnPrint);
         Backstage.Children.Add(left);
         var info = new StackPanel { Margin = new Thickness(40, 40, 0, 0) }; Grid.SetColumn(info, 1);
         info.Children.Add(new TextBlock { Text = "Informazioni", FontSize = 28 });
@@ -678,7 +678,7 @@ public partial class MainWindow : Window
         int prev = Enumerable.Range(0, _cur).LastOrDefault(i => !_doc!.IsHidden(i), -1);
         if (_doc == null || prev < 0 || _doc.IsHidden(_cur)) { Status.Text = "L'anteprima richiede una slide precedente visibile."; return; }
         CommitEdit(); SaveNotes();
-        var c = new ShowController(_doc, _r!, prev);
+        var c = new ShowController(_doc, _r!, prev) { AutoAdvance = false };
         var show = new PresentationWindow(c) { WindowStyle = WindowStyle.SingleBorderWindow, ResizeMode = ResizeMode.CanResize, Width = 960, Height = 560, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this, Cursor = Cursors.Arrow };
         show.Show();
         var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };

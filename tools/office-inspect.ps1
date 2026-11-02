@@ -11,7 +11,7 @@ $ctx = $null
 function Read-Pres($pres, $path) {
     $o = [ordered]@{ slideCount = $pres.Slides.Count; width = $pres.PageSetup.SlideWidth; height = $pres.PageSetup.SlideHeight; slides = @(); sections = $pres.SectionProperties.Count }
     foreach ($s in $pres.Slides) {
-        $sl = [ordered]@{ index = $s.SlideIndex; layout = $s.CustomLayout.Name; hidden = [int]$s.SlideShowTransition.Hidden; transition = [int]$s.SlideShowTransition.EntryEffect; notes = ''; shapes = @(); comments = $s.Comments.Count }
+        $sl = [ordered]@{ index = $s.SlideIndex; layout = $s.CustomLayout.Name; hidden = [int]$s.SlideShowTransition.Hidden; transition = [int]$s.SlideShowTransition.EntryEffect; notes = ''; shapes = @(); comments = $s.Comments.Count; advOn = [int]$s.SlideShowTransition.AdvanceOnTime; advTime = [double]$s.SlideShowTransition.AdvanceTime }
         try { foreach ($ns in $s.NotesPage.Shapes) { if ($ns.Type -eq 14 -and $ns.PlaceholderFormat.Type -eq 2) { $sl.notes = $ns.TextFrame.TextRange.Text } } } catch {}
         foreach ($sh in $s.Shapes) {
             $e = [ordered]@{ name = $sh.Name; type = [int]$sh.Type; text = ''; table = $null; l = [math]::Round($sh.Left, 1); t = [math]::Round($sh.Top, 1); w = [math]::Round($sh.Width, 1); h = [math]::Round($sh.Height, 1) }

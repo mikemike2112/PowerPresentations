@@ -205,8 +205,9 @@ public sealed class ComEditFixture
             int a = d.AddMedia(0, MediaCommandTests.WriteFile("c.wav", MediaCommandTests.Wav()), Png, 50, 380, 48, 48); d.AddMedia(0, MediaCommandTests.WriteFile("c.mp4", MediaCommandTests.FakeMp4()), Png, 200, 300, 320, 180);
             d.PasteShapes(d.AddSlide(d.Layouts[1], 0), d.CopyShapes(0, new[] { a }));
         });
+        Edit("transitions.pptx", "timing", d => { d.SetAdvanceTime(0, 2500); d.SetAdvanceTime(1, 4000); d.SetTransition(1, "fade", null, "fast"); });
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "hf", "showset", "media" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "hf", "showset", "media", "timing" }.Select(P));
     }
 }
 
@@ -314,6 +315,12 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         var r = Get("media");
         int Media(int slide) => ComRunner.Slide(r, slide).GetProperty("shapes").EnumerateArray().Count(s => s.GetProperty("type").GetInt32() == 16);   // msoMedia
         Assert.Equal(2, Media(0)); Assert.Equal(1, Media(1));
+    }
+    [Fact] public void AdvanceTimings_ReadByOffice_AndKeptWhenEffectChanges()
+    {
+        var r = Get("timing");
+        Assert.NotEqual(0, ComRunner.Slide(r, 0).GetProperty("advOn").GetInt32()); Assert.Equal(2.5, ComRunner.Slide(r, 0).GetProperty("advTime").GetDouble());
+        Assert.Equal(4.0, ComRunner.Slide(r, 1).GetProperty("advTime").GetDouble()); Assert.NotEqual(0, ComRunner.Slide(r, 1).GetProperty("transition").GetInt32());
     }
     [Fact] public void NewFromTemplate_OpensInOffice() { var r = Get("new"); Assert.Contains("Da modello", Txt(r, 0)); }
 }
