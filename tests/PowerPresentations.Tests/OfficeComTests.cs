@@ -179,8 +179,15 @@ public sealed class ComEditFixture
         Edit("hidden-slide.pptx", "unhide", d => d.SetHidden(1, false));
         Edit("notes-speaker.pptx", "editnotes", d => d.SetNotes(1, "Seconda nota cambiata"));
         Edit("table-merged-cells.pptx", "cell", d => { var gf = new SlideRenderer(d).Render(0).Hits.First(h => h.HasText); d.SetCellText(0, gf.Id, 3, 0, "modificata"); });
+        Edit("title-slide.pptx", "pastepic", d =>
+        {
+            var pic = d.AddPicture(0, Png, 600, 380, 100, 80); var tb = d.AddTextBox(0, 50, 400, 300, 40, "Testo copiato");
+            var clip = ShapeClip.FromBytes(d.CopyShapes(0, new[] { pic, tb }).ToBytes())!; d.PasteShapes(0, clip);
+            var s2 = d.AddSlide(d.Layouts[1], 0); d.PasteShapes(s2, clip);
+        });
+        Edit("title-slide.pptx", "pastechart", d => { using var s = PptxDocument.Open(Env.CorpusPath("chart-office.pptx")); d.PasteShapes(0, s.CopyShapes(0, new[] { s.ShapeIds(0).First(i => s.ShapeLabel(0, i).Contains("Grafico")) })); });
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart" }.Select(P));
     }
 }
 
@@ -239,6 +246,15 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         var shapes = ComRunner.Slide(Get("cell"), 0).GetProperty("shapes").EnumerateArray().ToList();
         var cells = shapes.First(s => s.GetProperty("type").GetInt32() == 19).GetProperty("table").GetProperty("cells").EnumerateArray().Select(x => x.GetString()).ToList();
         Assert.Equal("modificata", cells[12]);
+    }
+    [Fact] public void Paste_PicturesAndText_AreRealOfficeShapes_AndChartPasted()
+    {
+        var shapes = ComRunner.Slide(Get("pastepic"), 0).GetProperty("shapes").EnumerateArray().ToList();
+        Assert.Equal(2, shapes.Count(s => s.GetProperty("type").GetInt32() == 13));
+        Assert.Equal(2, shapes.Count(s => s.GetProperty("text").GetString() == "Testo copiato"));
+        var s2 = ComRunner.Slide(Get("pastepic"), 1).GetProperty("shapes").EnumerateArray().ToList();
+        Assert.Contains(s2, s => s.GetProperty("type").GetInt32() == 13);
+        Assert.Contains(ComRunner.Slide(Get("pastechart"), 0).GetProperty("shapes").EnumerateArray(), s => s.GetProperty("type").GetInt32() == 3);   // msoChart
     }
     [Fact] public void NewFromTemplate_OpensInOffice() { var r = Get("new"); Assert.Contains("Da modello", Txt(r, 0)); }
 }

@@ -43,4 +43,67 @@ public class CommandTests
         d.SetFormat(0, id, underline: true); Assert.True(d.GetRunState(0, id).Underline);
         d.SetFormat(0, id, underline: false); Assert.False(d.GetRunState(0, id).Underline);
     }
+
+    // ---- copia / taglia / incolla ----
+    [Fact]
+    public void CopyPaste_PictureAndText_BetweenSlides_ValidAndImageBytesKept()
+    {
+        using var d = PptxDocument.New();
+        int pic = d.AddPicture(0, ComEditFixture.Png, 100, 100, 50, 50), tb = d.AddTextBox(0, 10, 10, 200, 30, "Ciao");
+        var clip = ShapeClip.FromBytes(d.CopyShapes(0, new[] { pic, tb }).ToBytes())!;   // passa dal formato della clipboard
+        Assert.Equal("Ciao", clip.Text);
+        var s2 = d.AddSlide(d.Layouts[1], 0);
+        var ids = d.PasteShapes(s2, clip);
+        Assert.Equal(2, ids.Count); Assert.Equal(2, ids.Distinct().Count());
+        d.PasteShapes(s2, clip);   // secondo incolla nello stesso punto: spostato, id distinti
+        using var r = Reload(d, "paste");
+        Assert.Equal(2, r.Slides[s2].Slide!.Descendants<DocumentFormat.OpenXml.Presentation.Picture>().Count());
+        var imgs = r.Slides[s2].ImageParts.ToList(); Assert.NotEmpty(imgs);
+        foreach (var ip in imgs) { using var st = ip.GetStream(); var ms = new MemoryStream(); st.CopyTo(ms); Assert.Equal(ComEditFixture.Png, ms.ToArray()); }
+        var offs = r.Slides[s2].Slide!.Descendants<DocumentFormat.OpenXml.Drawing.Offset>().Select(o => (o.X!.Value, o.Y!.Value)).ToList();
+        Assert.Equal(offs.Count, offs.Distinct().Count());
+        var all = r.Slides[s2].Slide!.Descendants<DocumentFormat.OpenXml.Presentation.NonVisualDrawingProperties>().Select(n => n.Id!.Value).ToList();
+        Assert.Equal(all.Count, all.Distinct().Count());
+    }
+
+    [Fact]
+    public void CopyPaste_Placeholder_BecomesFreeShape_WithExplicitBox()
+    {
+        using var d = PptxDocument.New();
+        int title = FirstText(d, 0); d.SetShapeText(0, title, "Titolo");
+        var clip = d.CopyShapes(0, new[] { title });
+        var s2 = d.AddSlide(d.Layouts[1], 0); d.PasteShapes(s2, clip);
+        using var r = Reload(d, "paste-ph");
+        var pasted = r.Slides[s2].Slide!.Descendants<DocumentFormat.OpenXml.Presentation.Shape>().Last();
+        Assert.Null(pasted.NonVisualShapeProperties!.ApplicationNonVisualDrawingProperties!.GetFirstChild<DocumentFormat.OpenXml.Presentation.PlaceholderShape>());
+        Assert.NotNull(pasted.ShapeProperties!.Transform2D);
+    }
+
+    [Fact]
+    public void CopyPaste_Chart_AcrossDocuments_KeepsChartPartAndWorkbook()
+    {
+        using var src = PptxDocument.Open(Env.CorpusPath("chart-office.pptx"));
+        int gf = src.ShapeIds(0).First(i => src.ShapeLabel(0, i).Contains("Grafico"));
+        var clip = src.CopyShapes(0, new[] { gf });
+        using var dst = PptxDocument.New(); dst.PasteShapes(0, clip);
+        var f = Out("paste-chart"); dst.SaveAs(f); Assert.Empty(RoundTripTests.NewErrors(Env.CorpusPath("chart-office.pptx"), f));
+        using var z = System.IO.Compression.ZipFile.OpenRead(f);
+        Assert.Contains(z.Entries, e => e.FullName.Contains("/chart") && e.FullName.EndsWith(".xml") && !e.FullName.Contains("_rels"));
+        Assert.Contains(z.Entries, e => e.FullName.EndsWith(".xlsx"));
+    }
+
+    [Fact]
+    public void Paste_RejectsGarbage_AndUnsafeLinkSchemes()
+    {
+        Assert.Null(ShapeClip.FromBytes(new byte[] { 1, 2, 3 })); Assert.Null(ShapeClip.FromBytes(null));
+        using var d = PptxDocument.New();
+        var bad = new ShapeClip { Shapes = { "<p:script xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>" } };
+        Assert.Throws<PptxFormatException>(() => d.PasteShapes(0, bad));
+        var xml = "<p:sp xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><p:nvSpPr><p:cNvPr id=\"2\" name=\"x\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:p><a:r><a:rPr><a:hlinkClick r:id=\"rId9\"/></a:rPr><a:t>l</a:t></a:r></a:p></p:txBody></p:sp>";
+        var evil = new ShapeClip { Shapes = { xml }, Parts = { ["rId9"] = new ClipPart { Kind = "hyper", RelType = "hyperlink", Uri = "file:///c:/windows/system32/calc.exe", External = true } } };
+        d.PasteShapes(0, evil);
+        using var r = Reload(d, "paste-evil");
+        Assert.DoesNotContain("calc.exe", string.Join("", r.Slides[0].HyperlinkRelationships.Select(h => h.Uri.ToString())));
+        Assert.Empty(r.Slides[0].Slide!.Descendants<DocumentFormat.OpenXml.Drawing.HyperlinkOnClick>());
+    }
 }

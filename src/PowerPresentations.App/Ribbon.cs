@@ -177,7 +177,7 @@ public partial class MainWindow
         Ribbon.Items.Add(file);
 
         _homeTab = Tab("Home", false,
-            Group("Appunti", Large("Incolla", "paste", null), Stack(Small("Taglia", "cut", null), Small("Copia", "duplicate", null), Small("Copia formato", "generic", null))),
+            Group("Appunti", Large("Incolla", "paste", OnPaste), Stack(Small("Taglia", "cut", OnCut), Small("Copia", "duplicate", OnCopy), Small("Copia formato", "generic", null))),
             Group("Diapositive", Large("Nuova diapositiva", "slide-new", () => OnNewSlide(this, new RoutedEventArgs())),
                 Stack(Small("Duplica", "duplicate", () => OnDuplicate(this, new RoutedEventArgs())), Small("Elimina slide", "trash", () => OnDeleteSlide(this, new RoutedEventArgs())), Small("Nascondi/mostra", "hide", () => OnToggleHidden(this, new RoutedEventArgs())))),
             Group("Carattere", Stack(
@@ -189,7 +189,7 @@ public partial class MainWindow
                 Row(Small("Elenco puntato", "bullets", null, true), Small("Elenco numerato", "numbers", null, true)),
                 Row(Small("Allinea a sinistra", "align-l", () => Align("l"), true), Small("Allinea al centro", "align-c", () => Align("ctr"), true), Small("Allinea a destra", "align-r", () => Align("r"), true), Small("Giustifica", "align-j", () => Align("just"), true)))),
             Group("Disegno", Large("Forme", "shapes", () => OnInsertShape(this, new RoutedEventArgs())), Stack(Small("Elimina forma", "trash", () => OnDeleteShape(this, new RoutedEventArgs())))),
-            Group("Modifica", Stack(Small("Trova e sostituisci", "search", null), Small("Seleziona", "generic", null))));
+            Group("Modifica", Stack(Small("Trova e sostituisci", "search", null), Small("Seleziona", "generic", OnSelectMenu))));
 
         var insert = Tab("Inserisci", false,
             Group("Diapositive", Large("Nuova diapositiva", "slide-new", () => OnNewSlide(this, new RoutedEventArgs()))),

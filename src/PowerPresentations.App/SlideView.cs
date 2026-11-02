@@ -17,7 +17,17 @@ public sealed class SlideView : FrameworkElement
     public event Action<int, RectD>? BoxChanged;
     public event Action<int, Point>? EditRequested;
 
-    public int SelectedId { get => _sel; set { _sel = value; InvalidateVisual(); } }
+    readonly HashSet<int> _multi = new();
+
+    public int SelectedId { get => _sel; set { _sel = value; _multi.Clear(); InvalidateVisual(); } }
+    /// <summary>Forme selezionate: una sola (SelectedId) o più (Ctrl+clic, Seleziona tutto).</summary>
+    public IReadOnlyList<int> SelectedIds => _multi.Count > 0 ? _multi.ToList() : _sel != 0 ? new[] { _sel } : Array.Empty<int>();
+    public void SelectMany(IEnumerable<int> ids)
+    {
+        var l = ids.Distinct().ToList(); _multi.Clear();
+        if (l.Count == 1) _sel = l[0]; else { _sel = 0; foreach (var i in l) _multi.Add(i); }
+        InvalidateVisual(); Selected?.Invoke(_sel);
+    }
     public DisplayList? List { get => _dl; set { _dl = value; InvalidateVisual(); } }
     /// <summary>1 = la slide sta nella finestra.</summary>
     public double Zoom { get => _zoom; set { _zoom = Math.Clamp(value, 0.25, 2); InvalidateVisual(); } }
@@ -51,6 +61,7 @@ public sealed class SlideView : FrameworkElement
         dc.PushTransform(new ScaleTransform(_k, _k));
         SlideDrawing.Draw(dc, _dl);
         dc.Pop(); dc.Pop();
+        foreach (var id in _multi) if (BoxOf(id) is { } mb) dc.DrawRectangle(null, new Pen((Brush)Application.Current.Resources["AccentBrush"], 1.5), ToView(mb));
         if (_sel != 0 && (_dragId == _sel && _moved ? _liveBox : BoxOf(_sel)) is { } b)
         {
             var r = ToView(b);
@@ -75,13 +86,29 @@ public sealed class SlideView : FrameworkElement
                 if ((hs[i] - p).Length <= 8) { _handle = i; _dragId = _sel; _start = pt; _startBox = _liveBox = sb; CaptureMouse(); return; }
         }
         var hit = _dl.Hits.LastOrDefault(h => pt.X >= h.Box.X && pt.X <= h.Box.X + h.Box.W && pt.Y >= h.Box.Y && pt.Y <= h.Box.Y + h.Box.H);
-        _sel = hit.Id; Selected?.Invoke(_sel);
+        if (hit.Id != 0 && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            // Ctrl+clic: aggiunge o toglie la forma dalla selezione (nessun trascinamento con più forme)
+            var cur = SelectedIds.ToList(); if (!cur.Remove(hit.Id)) cur.Add(hit.Id);
+            SelectMany(cur); return;
+        }
+        _multi.Clear(); _sel = hit.Id; Selected?.Invoke(_sel);
         if (hit.Id != 0)
         {
             if (e.ClickCount == 2 && hit.HasText) { EditRequested?.Invoke(hit.Id, pt); InvalidateVisual(); return; }
             _dragId = hit.Id; _start = pt; _startBox = _liveBox = hit.Box; CaptureMouse();
         }
         InvalidateVisual();
+    }
+
+    protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
+    {
+        // il menu contestuale agisce sulla forma sotto il cursore (se non è già selezionata)
+        Focus();
+        if (_dl == null) return;
+        Layout_(); var p = e.GetPosition(this); var pt = new Point((p.X - _ox) / _k, (p.Y - _oy) / _k);
+        var hit = _dl.Hits.LastOrDefault(h => pt.X >= h.Box.X && pt.X <= h.Box.X + h.Box.W && pt.Y >= h.Box.Y && pt.Y <= h.Box.Y + h.Box.H);
+        if (!SelectedIds.Contains(hit.Id)) { _multi.Clear(); _sel = hit.Id; Selected?.Invoke(_sel); InvalidateVisual(); }
     }
 
     protected override void OnMouseMove(MouseEventArgs e)

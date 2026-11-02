@@ -62,7 +62,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         ApplyTheme(_settings.Dark);
         Thumbs.ItemsSource = _thumbs;
-        BuildChrome(); BuildRibbon(); BuildStatus(); BuildBackstage();
+        BuildChrome(); BuildRibbon(); BuildStatus(); BuildBackstage(); BuildContextMenus();
         View.Selected += OnSelect;
         View.BoxChanged += OnBoxChanged;
         View.EditRequested += BeginEdit;
@@ -308,7 +308,7 @@ public partial class MainWindow : Window
     }
 
     void UpdateStatus() =>
-        Status.Text = _doc == null ? "" : $"Diapositiva {_cur + 1} di {_doc.Slides.Count}" + (View.SelectedId != 0 ? $"   ·   forma {View.SelectedId}" : "") + (_doc.IsHidden(_cur) ? "   ·   nascosta" : "");
+        Status.Text = _doc == null ? "" : $"Diapositiva {_cur + 1} di {_doc.Slides.Count}" + (View.SelectedId != 0 ? $"   ·   forma {View.SelectedId}" : View.SelectedIds.Count > 1 ? $"   ·   {View.SelectedIds.Count} forme selezionate" : "") + (_doc.IsHidden(_cur) ? "   ·   nascosta" : "");
 
     // ---------- selezione / scheda tabella ----------
     bool IsTable(int id) => id != 0 && View.List != null && View.List.TableCells.Any(c => c.FrameId == id);
@@ -589,8 +589,8 @@ public partial class MainWindow : Window
 
     void OnDeleteShape(object s, RoutedEventArgs e)
     {
-        if (_doc == null || View.SelectedId == 0) return;
-        Snap(); _doc.DeleteShape(_cur, View.SelectedId); View.SelectedId = 0; RefreshCurrent(); OnSelect(0);
+        var ids = View.SelectedIds.ToList(); if (_doc == null || ids.Count == 0) return;
+        Snap(); foreach (var id in ids) _doc.DeleteShape(_cur, id); View.SelectedId = 0; RefreshCurrent(); OnSelect(0);
     }
 
     void OnInsertText(object s, RoutedEventArgs e)
@@ -615,19 +615,20 @@ public partial class MainWindow : Window
         if (_doc == null) return;
         var dlg = new OpenFileDialog { Filter = "Immagini (*.png;*.jpg;*.jpeg;*.gif;*.bmp)|*.png;*.jpg;*.jpeg;*.gif;*.bmp", Title = "Inserisci immagine" };
         if (dlg.ShowDialog(this) != true) return;
-        try
-        {
-            var data = File.ReadAllBytes(dlg.FileName);
-            var fr = BitmapFrame.Create(new MemoryStream(data), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-            double pw = fr.PixelWidth * 72.0 / (fr.DpiX > 0 ? fr.DpiX : 96), ph = fr.PixelHeight * 72.0 / (fr.DpiY > 0 ? fr.DpiY : 96);
-            var (sw, sh) = _doc.SlideSize; double k = Math.Min(1, Math.Min(sw * 0.6 / pw, sh * 0.6 / ph));
-            double w = pw * k, h = ph * k;
-            Snap();
-            int id = _doc.AddPicture(_cur, data, (sw - w) / 2, (sh - h) / 2, w, h, Path.GetFileNameWithoutExtension(dlg.FileName));
-            RefreshCurrent(); View.SelectedId = id;
-        }
+        try { AddPictureFit(File.ReadAllBytes(dlg.FileName), Path.GetFileNameWithoutExtension(dlg.FileName)); }
         catch (Exception ex) when (ex is IOException or NotSupportedException or FileFormatException or PptxFormatException or UnauthorizedAccessException)
         { ThemedDialog.Notify(this, "Immagine non inseribile", ex.Message, DialogKind.Warning); }
+    }
+
+    /// <summary>Inserisce un'immagine al centro, ridotta se più grande del 60% della slide. Un file illeggibile non lascia voci di annullamento.</summary>
+    int AddPictureFit(byte[] data, string descr)
+    {
+        var fr = BitmapFrame.Create(new MemoryStream(data), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+        double pw = fr.PixelWidth * 72.0 / (fr.DpiX > 0 ? fr.DpiX : 96), ph = fr.PixelHeight * 72.0 / (fr.DpiY > 0 ? fr.DpiY : 96);
+        var (sw, sh) = _doc!.SlideSize; double k = Math.Min(1, Math.Min(sw * 0.6 / pw, sh * 0.6 / ph));
+        double w = pw * k, h = ph * k;
+        int id = Guard(() => _doc.AddPicture(_cur, data, (sw - w) / 2, (sh - h) / 2, w, h, descr));
+        RefreshCurrent(); View.SelectedId = id; return id;
     }
 
     void OnInsertTable(object s, RoutedEventArgs e)
@@ -731,7 +732,9 @@ public partial class MainWindow : Window
         else if (ctrl && e.Key == Key.Z && !typing) { DoUndo(); e.Handled = true; }
         else if (ctrl && e.Key == Key.Y && !typing) { DoRedo(); e.Handled = true; }
         else if (ctrl && e.Key == Key.E) { Search.Focus(); e.Handled = true; }
-        else if (e.Key == Key.Delete && View.IsKeyboardFocused && View.SelectedId != 0) { OnDeleteShape(this, e); e.Handled = true; }
+        else if (ctrl && e.Key is Key.C or Key.X or Key.V && !typing && _doc != null) { ClipboardKey(e.Key); e.Handled = true; }
+        else if (ctrl && e.Key == Key.A && !typing && _doc != null && !_sorter) { SelectAllShapes(); e.Handled = true; }
+        else if (e.Key == Key.Delete && View.IsKeyboardFocused && View.SelectedIds.Count > 0) { OnDeleteShape(this, e); e.Handled = true; }
         else if (View.IsKeyboardFocused && e.Key == Key.PageDown && _doc != null) { ShowSlide(_cur + 1); e.Handled = true; }
         else if (View.IsKeyboardFocused && e.Key == Key.PageUp && _doc != null) { ShowSlide(_cur - 1); e.Handled = true; }
     }
