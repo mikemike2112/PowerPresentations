@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Xml.Linq;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -8,7 +8,8 @@ using PowerPresentations.Core.Rendering;
 
 namespace PowerPresentations.Core;
 
-public sealed record CommentInfo(string Author, string Text, string Created);
+/// <summary>Un commento o una risposta. Id identifica la voce nella slide (GUID moderno, "autore:idx" classico).</summary>
+public sealed record CommentInfo(string Author, string Text, string Created, string Id = "", bool IsReply = false, int Replies = 0);
 
 /// <summary>Intestazione e piè di pagina: numero slide, data (fissa o automatica), piè di pagina.</summary>
 public sealed record HeaderFooter(bool SlideNumber, bool Date, bool DateAuto, string DateText, bool Footer, string FooterText, bool SkipTitle = false);
@@ -30,25 +31,7 @@ public sealed partial class PptxDocument
         ms.Position = 0; p.FeedData(ms);
     }
 
-    // ---------- commenti ----------
-    public IReadOnlyList<CommentInfo> GetComments(int slide)
-    {
-        var sp = Slide(slide); var list = new List<CommentInfo>();
-        if (sp.GetPartsOfType<PowerPointCommentPart>().FirstOrDefault() is { } mp)
-        {
-            var authors = ModernAuthors();
-            foreach (var cm in Xml(mp).Elements(N188 + "cm"))
-                list.Add(new CommentInfo(authors.GetValueOrDefault((string?)cm.Attribute("authorId") ?? "", "?"), string.Join("\n", cm.Descendants(Ns.A + "p").Select(p => string.Concat(p.Descendants(Ns.A + "t").Select(t => t.Value)))), (string?)cm.Attribute("created") ?? ""));
-        }
-        if (sp.SlideCommentsPart is { } lp)
-        {
-            var authors = LegacyAuthors();
-            foreach (var cm in Xml(lp).Elements(Ns.P + "cm"))
-                list.Add(new CommentInfo(authors.GetValueOrDefault((string?)cm.Attribute("authorId") ?? "", "?"), cm.Element(Ns.P + "text")?.Value ?? "", (string?)cm.Attribute("dt") ?? ""));
-        }
-        return list;
-    }
-
+    // ---------- commenti ---------- (lettura, modifica, eliminazione: PptxDocument.Comments.cs)
     Dictionary<string, string> ModernAuthors() =>
         PresentationPart.GetPartsOfType<PowerPointAuthorsPart>().FirstOrDefault() is { } ap ? Xml(ap).Elements(N188 + "author").ToDictionary(a => (string?)a.Attribute("id") ?? "", a => (string?)a.Attribute("name") ?? "?") : new();
 
@@ -58,9 +41,7 @@ public sealed partial class PptxDocument
     /// <summary>Aggiunge un commento alla slide. Moderno (come PowerPoint 365) di norma; se la slide ha già commenti classici si aggiunge un commento classico.</summary>
     public void AddComment(int slide, string text)
     {
-        text = text.Replace("\r\n", "\n").Trim();
-        if (text.Length == 0) throw new ArgumentException("Il commento è vuoto.");
-        if (text.Length > 10000) throw new ArgumentException("Il commento è troppo lungo (massimo 10000 caratteri).");
+        text = CleanCommentText(text);
         var sp = Slide(slide);
         var now = DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff", CultureInfo.InvariantCulture);
         if (sp.SlideCommentsPart != null && !sp.GetPartsOfType<PowerPointCommentPart>().Any()) AddLegacyComment(sp, text, now); else AddModernComment(sp, slide, text, now);
@@ -108,7 +89,7 @@ public sealed partial class PptxDocument
         int n = list.Elements(N188 + "cm").Count();
         XNamespace pc = "http://schemas.microsoft.com/office/powerpoint/2013/main/command";
         var body = new XElement(N188 + "txBody", new XElement(Ns.A + "bodyPr"), new XElement(Ns.A + "lstStyle"),
-            text.Split('\n').Select(l => new XElement(Ns.A + "p", l.Length == 0 ? null : new XElement(Ns.A + "r", new XElement(Ns.A + "rPr", new XAttribute("lang", "it-IT")), new XElement(Ns.A + "t", l)))));
+            CommentParas(text));
         list.Add(new XElement(N188 + "cm", new XAttribute("id", "{" + Guid.NewGuid().ToString().ToUpperInvariant() + "}"), new XAttribute("authorId", (string)au.Attribute("id")!), new XAttribute("created", now),
             new XElement(pc + "sldMkLst", new XAttribute(XNamespace.Xmlns + "pc", pc.NamespaceName), new XElement(pc + "docMk"), new XElement(pc + "sldMk", new XAttribute("cId", creation), new XAttribute("sldId", sldId))),
             new XElement(N188 + "pos", new XAttribute("x", 1270000 + n * 254000), new XAttribute("y", 1270000 + n * 254000)), body));
@@ -116,9 +97,9 @@ public sealed partial class PptxDocument
         {
             cp = sp.AddNewPart<PowerPointCommentPart>();
             var rid = sp.GetIdOfPart(cp);
-            var ext = new P.Extension($"<p:ext xmlns:p=\"{Ns.P.NamespaceName}\" uri=\"{{6950BFC3-D8DA-4A85-94F7-54DA5524770B}}\"><p188:commentRel xmlns:p188=\"{P188}\" xmlns:r=\"{Ns.R.NamespaceName}\" r:id=\"{rid}\"/></p:ext>");
+            var ext = new P.SlideExtension($"<p:ext xmlns:p=\"{Ns.P.NamespaceName}\" uri=\"{{6950BFC3-D8DA-4A85-94F7-54DA5524770B}}\"><p188:commentRel xmlns:p188=\"{P188}\" xmlns:r=\"{Ns.R.NamespaceName}\" r:id=\"{rid}\"/></p:ext>");
             var sl = sp.Slide!;
-            if (sl.GetFirstChild<P.ExtensionList>() is { } el) el.AppendChild(ext); else sl.AppendChild(new P.ExtensionList(ext));
+            if (sl.GetFirstChild<P.SlideExtensionList>() is { } el) el.AppendChild(ext); else sl.AppendChild(new P.SlideExtensionList(ext));
         }
         WritePart(cp, list);
     }

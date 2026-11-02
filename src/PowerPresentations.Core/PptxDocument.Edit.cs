@@ -85,6 +85,7 @@ public sealed partial class PptxDocument
             if (pr.OpenXmlPart is ChartPart or DiagramDataPart or DiagramLayoutDefinitionPart or DiagramStylePart or DiagramColorsPart or DiagramPersistLayoutPart) CloneInto(np, pr.OpenXmlPart, pr.RelationshipId);
             else np.AddPart(pr.OpenXmlPart, pr.RelationshipId);
         }
+        DropCommentRel(np);   // la copia non ha commenti: via il riferimento alla part che non c'è
         foreach (var h in src.HyperlinkRelationships) np.AddHyperlinkRelationship(h.Uri, h.IsExternal, h.Id);
         foreach (var x in src.ExternalRelationships) np.AddExternalRelationship(x.RelationshipType, x.Uri, x.Id);
         var idx = InsertSlideId(np, i);
