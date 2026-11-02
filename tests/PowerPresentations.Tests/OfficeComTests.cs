@@ -196,8 +196,12 @@ public sealed class ComEditFixture
             int a = d.AddShape(0, "rect", 10, 10, 100, 50, "origine"), b = d.AddShape(0, "ellipse", 200, 10, 100, 50, "destinazione");
             d.SetFormat(0, a, bold: true, sizePt: 28, colorHex: "FF0000"); d.ApplyFormat(0, b, d.CopyFormat(0, a));
         });
+        Edit("title-slide.pptx", "comment", d => { d.AddComment(0, "Primo"); d.AddComment(0, "Secondo\nriga"); });
+        Edit("comments.pptx", "commentold", d => d.AddComment(0, "Aggiunto dal clone"));
+        Edit("mixed-realistic-1.pptx", "hf", d => d.ApplyHeaderFooter(new HeaderFooter(true, true, false, "02/11/2026", true, "Piè dal clone")));
+        Edit("mixed-realistic-1.pptx", "showset", d => d.SetShowSettings(new ShowSettings("kiosk", true, false, false, false, 1, 2)));
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "hf", "showset" }.Select(P));
     }
 }
 
@@ -286,5 +290,19 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         Assert.Contains("TESTO NUOVO", Txt(Get("replace"), 0)); Assert.Contains("€", Txt(Get("replace"), 0));
     }
     [Fact] public void CopyFormat_ReadByOffice_KeepsTextOfTarget() => Assert.Contains("destinazione", Txt(Get("copyfmt"), 0));
+    [Fact] public void Comments_ReadByOffice_NewAndAddedToExisting()
+    {
+        Assert.Equal(2, ComRunner.Slide(Get("comment"), 0).GetProperty("comments").GetInt32());
+        Assert.Equal(2, ComRunner.Slide(Get("commentold"), 0).GetProperty("comments").GetInt32());
+    }
+    [Fact] public void HeaderFooter_ReadByOffice_AsPlaceholders()
+    {
+        var r = Get("hf");
+        for (int i = 0; i < ComRunner.Content(r).GetProperty("slideCount").GetInt32(); i++)
+        {
+            var t = Txt(r, i); Assert.Contains("Piè dal clone", t); Assert.Contains("02/11/2026", t);
+        }
+    }
+    [Fact] public void ShowSettings_FileOpensInOffice() => Assert.Equal(ComRunner.Content(Get("showset")).GetProperty("slideCount").GetInt32(), ComRunner.Content(_f.R[Path.GetFullPath(_f.P("showset"))]).GetProperty("slideCount").GetInt32());
     [Fact] public void NewFromTemplate_OpensInOffice() { var r = Get("new"); Assert.Contains("Da modello", Txt(r, 0)); }
 }
