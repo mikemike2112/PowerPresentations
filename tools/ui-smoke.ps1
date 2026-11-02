@@ -8,6 +8,7 @@ Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.For
 Add-Type @'
 using System; using System.Runtime.InteropServices;
 public static class W { [DllImport("user32.dll")] public static extern bool SetProcessDPIAware(); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, int f, int e); [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f); [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint f);
+ [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c); [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid); [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool attach); [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
  [DllImport("user32.dll")] public static extern void mouse_event(int f, int dx, int dy, int d, int e); [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; } }
 '@
@@ -28,7 +29,20 @@ function Press($root, $name) {
     else { throw "nessun pattern per $name" }
     Start-Sleep -Milliseconds 600
 }
-function Front($h) { if ([W]::GetForegroundWindow() -eq $h) { return }; for ($i = 0; $i -lt 6; $i++) { [void][W]::SetWindowPos($h, [IntPtr]::new(-1), 0, 0, 0, 0, 0x43); [W]::keybd_event(0x12, 0, 0, 0); [W]::keybd_event(0x12, 0, 2, 0); [void][W]::SetForegroundWindow($h); Start-Sleep -Milliseconds 300; if ([W]::GetForegroundWindow() -eq $h) { return } } }   # topmost + foreground (trucco ALT contro il blocco del focus); i clic reali non finiscono su altre finestre
+function Front($h) {
+    if ([W]::GetForegroundWindow() -eq $h) { return }
+    for ($i = 0; $i -lt 8; $i++) {
+        [void][W]::ShowWindow($h, 9)   # SW_RESTORE: se minimizzata/nascosta dietro
+        [void][W]::SetWindowPos($h, [IntPtr]::new(-1), 0, 0, 0, 0, 0x43)
+        # il foreground lock di Windows lascia cambiare finestra solo a chi ne condivide la coda di input: ci si aggancia temporaneamente al thread in primo piano
+        $fg = [W]::GetForegroundWindow(); $pid2 = [uint32]0; $ft = [W]::GetWindowThreadProcessId($fg, [ref]$pid2); $me = [W]::GetCurrentThreadId()
+        if ($ft -ne 0 -and $ft -ne $me) { [void][W]::AttachThreadInput($me, $ft, $true) }
+        [W]::keybd_event(0x12, 0, 0, 0); [W]::keybd_event(0x12, 0, 2, 0); [void][W]::BringWindowToTop($h); [void][W]::SetForegroundWindow($h)
+        if ($ft -ne 0 -and $ft -ne $me) { [void][W]::AttachThreadInput($me, $ft, $false) }
+        Start-Sleep -Milliseconds 300; if ([W]::GetForegroundWindow() -eq $h) { return }
+    }
+    throw 'impossibile portare la finestra in primo piano (focus)'
+}   # topmost + foreground; i clic reali non finiscono su altre finestre
 function Shot($h, $path) {
     $r = New-Object W+RECT; [void][W]::GetWindowRect($h, [ref]$r)
     $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T); $g = [System.Drawing.Graphics]::FromImage($bmp); $hdc = $g.GetHdc()

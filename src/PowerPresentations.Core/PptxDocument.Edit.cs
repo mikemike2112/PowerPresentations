@@ -82,13 +82,27 @@ public sealed partial class PptxDocument
         foreach (var pr in src.Parts)
         {
             if (pr.OpenXmlPart is NotesSlidePart or SlideCommentsPart or PowerPointCommentPart) continue;
-            np.AddPart(pr.OpenXmlPart, pr.RelationshipId);
+            if (pr.OpenXmlPart is ChartPart or DiagramDataPart or DiagramLayoutDefinitionPart or DiagramStylePart or DiagramColorsPart or DiagramPersistLayoutPart) CloneInto(np, pr.OpenXmlPart, pr.RelationshipId);
+            else np.AddPart(pr.OpenXmlPart, pr.RelationshipId);
         }
         foreach (var h in src.HyperlinkRelationships) np.AddHyperlinkRelationship(h.Uri, h.IsExternal, h.Id);
         foreach (var x in src.ExternalRelationships) np.AddExternalRelationship(x.RelationshipType, x.Uri, x.Id);
         var idx = InsertSlideId(np, i);
         var notes = GetNotes(i); if (notes.Length > 0) SetNotes(idx, notes);
         return idx;
+    }
+
+    /// <summary>Copia profonda di una part (grafico, SmartArt) con i suoi figli: PowerPoint non accetta la stessa part di grafico condivisa da due slide. Le immagini restano condivise.</summary>
+    static void CloneInto(OpenXmlPartContainer parent, OpenXmlPart src, string rid)
+    {
+        var ext = System.IO.Path.GetExtension(src.Uri.OriginalString); if (ext.Length == 0) ext = ".xml";
+        var copy = parent.AddExtendedPart(src.RelationshipType, src.ContentType, ext, rid);
+        using (var s = src.GetStream(FileMode.Open, FileAccess.Read)) copy.FeedData(s);
+        foreach (var c in src.Parts)
+        {
+            if (c.OpenXmlPart is ImagePart) copy.AddPart(c.OpenXmlPart, c.RelationshipId); else CloneInto(copy, c.OpenXmlPart, c.RelationshipId);
+        }
+        foreach (var h in src.ExternalRelationships) copy.AddExternalRelationship(h.RelationshipType, h.Uri, h.Id);
     }
 
     public void DeleteSlide(int i)
