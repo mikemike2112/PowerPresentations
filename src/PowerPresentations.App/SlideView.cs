@@ -32,6 +32,12 @@ public sealed class SlideView : FrameworkElement
     /// <summary>1 = la slide sta nella finestra.</summary>
     public double Zoom { get => _zoom; set { _zoom = Math.Clamp(value, 0.25, 2); InvalidateVisual(); } }
 
+    bool _grid, _ruler;
+    /// <summary>Griglia (passo 1 cm) e righello (cm) disegnati sopra la slide; non toccano il file.</summary>
+    public bool ShowGrid { get => _grid; set { _grid = value; InvalidateVisual(); } }
+    public bool ShowRuler { get => _ruler; set { _ruler = value; InvalidateVisual(); } }
+    const double Cm = 72 / 2.54;
+
     public SlideView() { Focusable = true; ClipToBounds = true; }
 
     void Layout_()
@@ -61,6 +67,8 @@ public sealed class SlideView : FrameworkElement
         dc.PushTransform(new ScaleTransform(_k, _k));
         SlideDrawing.Draw(dc, _dl);
         dc.Pop(); dc.Pop();
+        if (_grid) DrawGrid(dc);
+        if (_ruler) DrawRuler(dc);
         foreach (var id in _multi) if (BoxOf(id) is { } mb) dc.DrawRectangle(null, new Pen((Brush)Application.Current.Resources["AccentBrush"], 1.5), ToView(mb));
         if (_sel != 0 && (_dragId == _sel && _moved ? _liveBox : BoxOf(_sel)) is { } b)
         {
@@ -68,6 +76,37 @@ public sealed class SlideView : FrameworkElement
             var accent = (Brush)Application.Current.Resources["AccentBrush"];
             dc.DrawRectangle(null, new Pen(accent, 1.5), r);
             foreach (var h in Handles(r)) dc.DrawEllipse(Brushes.White, new Pen(accent, 1.5), h, 4.5, 4.5);
+        }
+    }
+
+    void DrawGrid(DrawingContext dc)
+    {
+        var pen = new Pen(new SolidColorBrush(Color.FromArgb(70, 128, 128, 128)), 1); pen.Freeze();
+        double w = _dl!.Width, h = _dl.Height;
+        for (double x = Cm; x < w; x += Cm) dc.DrawLine(pen, new Point(_ox + x * _k, _oy), new Point(_ox + x * _k, _oy + h * _k));
+        for (double y = Cm; y < h; y += Cm) dc.DrawLine(pen, new Point(_ox, _oy + y * _k), new Point(_ox + w * _k, _oy + y * _k));
+    }
+
+    void DrawRuler(DrawingContext dc)
+    {
+        const double t = 18;
+        var bg = (Brush)Application.Current.Resources["PanelBrush"]; var fg = (Brush)Application.Current.Resources["MutedBrush"];
+        var pen = new Pen(fg, 1);
+        dc.DrawRectangle(bg, null, new Rect(0, 0, ActualWidth, t)); dc.DrawRectangle(bg, null, new Rect(0, 0, t, ActualHeight));
+        double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        void Label(string s, Point p) => dc.DrawText(new FormattedText(s, System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 9, fg, dpi), p);
+        double w = _dl!.Width / Cm, h = _dl.Height / Cm;
+        for (int i = 0; i * 0.5 <= w; i++)
+        {
+            double x = _ox + i * 0.5 * Cm * _k; bool whole = i % 2 == 0;
+            dc.DrawLine(pen, new Point(x, t), new Point(x, t - (whole ? 8 : 4)));
+            if (whole && i % 2 == 0) Label((i / 2).ToString(), new Point(x + 2, 1));
+        }
+        for (int i = 0; i * 0.5 <= h; i++)
+        {
+            double y = _oy + i * 0.5 * Cm * _k; bool whole = i % 2 == 0;
+            dc.DrawLine(pen, new Point(t, y), new Point(t - (whole ? 8 : 4), y));
+            if (whole) Label((i / 2).ToString(), new Point(1, y + 1));
         }
     }
 
