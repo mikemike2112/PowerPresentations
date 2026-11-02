@@ -14,6 +14,9 @@ namespace PowerPresentations.App;
 public sealed class ShowController
 {
     public PptxDocument Doc { get; }
+    public ShowSettings Settings { get; }
+    /// <summary>Ciclo continuo (anche in modalità postazione informatica).</summary>
+    public bool Loop => Settings.Loop || Settings.Mode == "kiosk";
     public SlideRenderer Renderer { get; }
     public List<int> Order { get; }
     public int Pos { get; private set; }
@@ -28,7 +31,10 @@ public sealed class ShowController
     public ShowController(PptxDocument doc, SlideRenderer r, int start)
     {
         Doc = doc; Renderer = r;
-        Order = Enumerable.Range(0, doc.Slides.Count).Where(i => !doc.IsHidden(i) || i == start).ToList();
+        Settings = doc.GetShowSettings();
+        // intervallo di Imposta presentazione: vale solo se si parte da dentro l'intervallo
+        bool inRange = Settings.From is { } f && Settings.To is { } t && start >= f - 1 && start <= t - 1;
+        Order = Enumerable.Range(0, doc.Slides.Count).Where(i => (!doc.IsHidden(i) || i == start) && (!inRange || (i >= Settings.From!.Value - 1 && i <= Settings.To!.Value - 1))).ToList();
         Pos = Math.Max(0, Order.IndexOf(start));
     }
 
@@ -38,7 +44,7 @@ public sealed class ShowController
         if (pos == Pos && !Black) return false;
         var old = Pos; Pos = pos; Black = false; Changed?.Invoke(old); return true;
     }
-    public bool Next() => Pos + 1 < Order.Count && Go(Pos + 1);
+    public bool Next() => Pos + 1 < Order.Count ? Go(Pos + 1) : Loop && Order.Count > 1 && Go(0);   // ponytail: kiosk = solo ciclo, i clic avanzano comunque
     public bool Prev() => Pos > 0 && Go(Pos - 1);
     public void ToggleBlack() { Black = !Black; Changed?.Invoke(Pos); }
 

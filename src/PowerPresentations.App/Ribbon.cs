@@ -197,8 +197,8 @@ public partial class MainWindow
             Group("Immagini", Large("Immagini", "image", () => OnInsertPicture(this, new RoutedEventArgs()))),
             Group("Illustrazioni", Large("Forme", "shapes", () => OnInsertShape(this, new RoutedEventArgs())), Stack(Small("Icone", "generic", null))),
             Group("Collegamenti", Large("Collegamento", "generic", OnHyperlink)),
-            Group("Commenti", Large("Commento", "generic", null)),
-            Group("Testo", Large("Casella di testo", "textbox", () => OnInsertText(this, new RoutedEventArgs())), Large("Intestazione e piè di pagina", "generic", null)),
+            Group("Commenti", Large("Commento", "generic", OnComment)),
+            Group("Testo", Large("Casella di testo", "textbox", () => OnInsertText(this, new RoutedEventArgs())), Large("Intestazione e piè di pagina", "generic", OnHeaderFooter)),
             Group("Simboli", Large("Simboli", "generic", OnSymbols)),
             Group("Elementi multimediali", Large("Video", "generic", null), Large("Audio", "generic", null)));
 
@@ -212,7 +212,7 @@ public partial class MainWindow
 
         var show = Tab("Presentazione", false,
             Group("Avvia presentazione", Large("Dall'inizio", "play", () => OnPresent(this, new RoutedEventArgs())), Large("Dalla diapositiva corrente", "play-here", () => OnPresentHere(this, new RoutedEventArgs())), Large("Vista relatore", "presenter", () => OnPresenter(this, new RoutedEventArgs())), Large("Presentazione personalizzata", "generic", null)),
-            Group("Imposta", Large("Imposta presentazione", "generic", null), Large("Nascondi diapositiva", "hide", () => OnToggleHidden(this, new RoutedEventArgs())), Large("Prova intervalli", "generic", null), Large("Registra", "generic", null)));
+            Group("Imposta", Large("Imposta presentazione", "generic", OnSetupShow), Large("Nascondi diapositiva", "hide", () => OnToggleHidden(this, new RoutedEventArgs())), Large("Prova intervalli", "generic", null), Large("Registra", "generic", null)));
 
         var view = Tab("Visualizza", false,
             Group("Visualizzazioni presentazione", Large("Normale", "normal", () => SetSorter(false)), Large("Sequenza diapositive", "sorter", () => SetSorter(true)), Large("Pagina note", "notes", null)),
