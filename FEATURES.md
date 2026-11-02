@@ -49,7 +49,7 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 - [ ] P1 Altre forme predefinite (callout, flowchart, cuore, fulmine… oggi disegnate come rettangolo), connettori con aggancio, linee
 - [x] P1 Video e audio incorporati (MP4/MOV/WMV/AVI, MP3/WAV/M4A/WMA, tetto 50 MB, anteprima generica) come forme multimediali vere — `MediaCommandTests.*`, `OfficeEditTests.Media_*` (non riprodotti nel clone)
 - [ ] P1 Grafico, SmartArt, equazioni, WordArt, icone, 3D (si **conservano** nel file e il rendering mostra un segnaposto: grafico con workbook incorporato e SmartArt provati dopo modifica e salvataggio, `ChartSmartArtTests`)
-- [x] P1 Commento (aggiunta di commenti moderni con autore generico «Autore», o classici se la slide ne ha già; elenco dei presenti nel dialogo) — `ReviewCommandTests.Comment_*`, `OfficeEditTests.Comments_ReadByOffice_*`; non modificabili/eliminabili né disegnati sulla slide
+- [x] P1 Commenti: il comando Commento apre il riquadro Commenti (elenco della diapositiva corrente con autore, data e testo, aggiornato al cambio slide); aggiunta (autore generico «Autore», moderno o classico se la slide ha già commenti classici), modifica del testo ed eliminazione (con conferma se ci sono risposte, che spariscono con il commento) per tutti i commenti del file, moderni con risposte e classici; un solo Ctrl+Z per operazione — `CommentEditTests`, `ReviewCommandTests.Comment_*`, `OfficeEditTests.Comments_*`, `UiTests.RealInput_CommentsPane_*`; i commenti non sono disegnati sulla slide
 - [x] P1 Collegamento ipertestuale su tutto il testo di una forma (solo http, https, mailto) — `TextCommandTests.Hyperlink_*`, `OfficeEditTests.Hyperlink_*`; selezione parziale di testo non supportata
 - [x] P2 Intestazione e piè di pagina (numero, data fissa/automatica, piè; slide corrente o tutte; solo dove il layout ha il segnaposto), Simboli (elenco di 28) — `ReviewCommandTests.HeaderFooter_*`, `TextCommandTests.AppendText_*`, `OfficeEditTests.HeaderFooter_*`
 
@@ -84,7 +84,7 @@ un test automatico (nome del test o dello script tra parentesi). `[ ]` = non fat
 
 ## Revisione / altro
 
-- [ ] P1 Controllo ortografico, commenti, traduzione
+- [ ] P1 Controllo ortografico, traduzione
 - [ ] P2 Accessibilità, protezione, firma, macro (mai eseguite: i file con macro non si aprono)
 
 ## Finestre di dialogo e salvataggio

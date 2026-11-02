@@ -1,4 +1,4 @@
-# COMPAT — compatibilità con PowerPoint (ECMA-376)
+﻿# COMPAT — compatibilità con PowerPoint (ECMA-376)
 
 Tutti i numeri qui sotto vengono dall'ultima esecuzione reale dei test (`dotnet test`) e degli script in `tools/`.
 
@@ -66,13 +66,13 @@ sono tutti spiegati da differenze reali osservate guardando le immagini:
 - Slide numero/data: campo `slidenum` calcolato, `datetime` mostra il testo memorizzato.
 - Transizioni: gli effetti p14 (vortice, cubo…) si leggono come "altro" e si riproducono in dissolvenza. Una transizione che l'utente non cambia resta identica (`mc:AlternateContent` e `p14:dur` conservati, test `TransitionDataLossTests`). Se la cambia, il clone riscrive l'`mc:AlternateContent` con la nuova transizione conservando `p14:dur` (o 500/1000/2000 ms se cambia la velocità); si perdono solo gli attributi p14 specifici dell'effetto precedente, e passando a "Nessuna" l'intero blocco viene rimosso.
 - Vista relatore e secondo monitor: logica implementata (presentazione sul secondo schermo, relatore sul primo), **non verificata** (PC con un solo schermo).
-- Duplicazione slide: grafici e SmartArt (con workbook incorporato) vengono copiati in part distinte, non condivise con l'originale (`ChartSmartArtTests`); la copia non ha commenti (le note sì); i commenti dell'originale restano intatti (`CommentsTests`).
+- Duplicazione slide: grafici e SmartArt (con workbook incorporato) vengono copiati in part distinte, non condivise con l'originale (`ChartSmartArtTests`); la copia non ha commenti (le note sì) né il riferimento `p188:commentRel` dell'originale; i commenti dell'originale restano intatti (`CommentsTests`, `CommentEditTests`).
 - `.pptm`, `.ppt`, file protetti da password: non si aprono (messaggio chiaro).
 
 ## Comandi aggiunti (formato scritto)
 
 - **Appunti**: le forme copiate viaggiano come JSON con XML + part collegate (immagini, grafico con workbook, SmartArt, media, collegamenti); incollando, id forma e relazioni sono rinumerati e le part ricreate (grafico e SmartArt con part proprie). I segnaposto incollati diventano forme libere con posizione esplicita (perdono la formattazione ereditata dal layout). I collegamenti con schemi diversi da http/https/mailto sono scartati; gli appunti sono trattati come input non fidato.
-- **Commento**: moderno (`ppt/comments/modernComment_*.xml`, `ppt/authors.xml`, `p188:commentRel`, `p14:creationId` della slide); l'autore è sempre «Autore» (mai il nome di Windows). Se la slide ha già commenti classici si aggiunge un commento classico.
+- **Commento**: moderno (`ppt/comments/modernComment_*.xml`, `ppt/authors.xml`, `p188:commentRel`, `p14:creationId` della slide); l'autore è sempre «Autore» (mai il nome di Windows). Se la slide ha già commenti classici si aggiunge un commento classico. Il riquadro Commenti legge, modifica ed elimina anche i commenti creati da PowerPoint: moderni (`p188:cm` con `p188:replyLst`) e classici (`p:cm`, risposte via `p15:parentCm`). La modifica riscrive solo il testo (autore, data, id, posizione e gli altri commenti non cambiano); l'eliminazione toglie il commento con le sue risposte e, se era l'ultimo della slide, anche la part, la relazione, l'override del content type e `p188:commentRel`. Gli autori (`authors.xml`, `commentAuthors.xml` con `lastIdx`) restano com'erano, come fa PowerPoint. Verificato con validatore Open XML e con PowerPoint (`OfficeEditTests.Comments_EditedAndDeletedByClone_*`); i commenti classici sono provati solo su file costruiti nei test (il corpus contiene solo un commento moderno).
 - **Intestazione e piè di pagina**: crea i segnaposto `dt`/`ftr`/`sldNum` solo se il layout li prevede.
 - **Imposta presentazione**: `p:showPr` in `presProps.xml` (modalità, ciclo, narrazione/animazioni/intervalli, intervallo `sldRg`). Gli effetti sulla riproduzione del clone: intervallo di slide e ciclo; narrazione assente.
 - **Prova intervalli / Applica a tutte**: attributo `advTm` di `p:transition`, mantenuto anche quando cambia l'effetto (anche dentro `mc:AlternateContent`).

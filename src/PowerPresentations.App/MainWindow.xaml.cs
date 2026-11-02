@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -372,7 +372,7 @@ public partial class MainWindow : Window
         _cur = Math.Clamp(i, 0, _doc.Slides.Count - 1);
         View.SelectedId = 0; View.List = _r!.Render(_cur); OnSelect(0);
         Notes.Text = _doc.GetNotes(_cur);
-        UpdateTransUi(); UpdateStatus();
+        UpdateTransUi(); UpdateStatus(); RefreshComments();
         if (Thumbs.SelectedIndex != _cur) { _loading = true; Thumbs.SelectedIndex = _cur; _loading = false; }
     }
 

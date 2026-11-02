@@ -1,4 +1,4 @@
-<Window x:Class="PowerPresentations.App.MainWindow"
+﻿<Window x:Class="PowerPresentations.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -49,6 +49,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="230"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
@@ -77,6 +78,20 @@
                 <TextBox x:Name="Editor" Visibility="Collapsed" Background="White" Foreground="Black" CaretBrush="Black" AcceptsReturn="True" AcceptsTab="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                          BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" TextWrapping="Wrap" LostFocus="OnEditorLost" PreviewKeyDown="OnEditorKey"/>
             </Grid>
+
+            <Border x:Name="CommentsPane" Grid.Column="2" Grid.RowSpan="2" Width="300" Visibility="Collapsed" Background="{DynamicResource RibbonBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <DockPanel Margin="12,10,8,6">
+                        <Button x:Name="CommentsClose" DockPanel.Dock="Right" Content="Chiudi" Padding="10,2" AutomationProperties.Name="Chiudi riquadro Commenti" Click="OnCommentsClose"/>
+                        <TextBlock x:Name="CommentsTitle" Text="Commenti" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="8,0">
+                        <StackPanel x:Name="CommentList" AutomationProperties.Name="Elenco commenti"/>
+                    </ScrollViewer>
+                    <Button Grid.Row="2" Content="Nuovo commento" Margin="12,8,12,12" Padding="10,6" AutomationProperties.Name="Nuovo commento" Click="OnNewCommentClick"/>
+                </Grid>
+            </Border>
 
             <Grid x:Name="NotesArea" Grid.Column="1" Grid.Row="1" Background="Transparent">
                 <TextBlock x:Name="NotesHint" Text="Fare clic per inserire le note" Margin="14,8" Foreground="{DynamicResource MutedBrush}" IsHitTestVisible="False" FontSize="14"/>

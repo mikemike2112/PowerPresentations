@@ -38,7 +38,7 @@ public class CommentEditTests
             foreach (var e in XElement.Parse(Entry(f, c)).Descendants().Where(e => e.Name == P188 + "cm" || e.Name == P188 + "reply")) Assert.Contains((string)e.Attribute("authorId")!, authors);
     }
 
-    static void AddReply(PptxDocument d, int slide, string cmIndex, string text)
+    internal static void AddReply(PptxDocument d, int slide, string cmIndex, string text)
     {
         var cp = d.Slides[slide].GetPartsOfType<PowerPointCommentPart>().Single(); var x = PptxDocument.Xml(cp);
         var cm = x.Elements(P188 + "cm").ElementAt(int.Parse(cmIndex));

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -17,17 +17,75 @@ public partial class MainWindow
     static TextBlock Caption(string t) => new() { Text = t, FontSize = 12, Foreground = Br("MutedBrush"), Margin = new Thickness(0, 10, 0, 0) };
 
     // ---------- commento ----------
+    /// <summary>Il comando Commento apre/chiude il riquadro Commenti (elenco della diapositiva corrente).</summary>
     void OnComment()
     {
         if (_doc == null) return;
         CommitEdit();
-        var sp = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-        var existing = _doc.GetComments(_cur);
-        if (existing.Count > 0)
+        CommentsPane.Visibility = CommentsPane.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        RefreshComments();
+    }
+
+    void OnCommentsClose(object s, RoutedEventArgs e) { CommentsPane.Visibility = Visibility.Collapsed; View.Focus(); }
+
+    void OnNewCommentClick(object s, RoutedEventArgs e) => OnNewComment();
+
+    /// <summary>Ricostruisce l'elenco; da chiamare quando cambia slide o dopo ogni operazione sui commenti.</summary>
+    void RefreshComments()
+    {
+        if (_doc == null || CommentsPane.Visibility != Visibility.Visible) return;
+        CommentList.Children.Clear();
+        var list = _doc.GetComments(_cur);
+        CommentsTitle.Text = $"Commenti ({list.Count})";
+        if (list.Count == 0) CommentList.Children.Add(new TextBlock { Text = "Nessun commento in questa diapositiva.", Foreground = Br("MutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(6, 8, 6, 0), FontSize = 12.5 });
+        int n = 0;
+        foreach (var c in list)
         {
-            sp.Children.Add(Caption($"Commenti già presenti: {existing.Count}"));
-            sp.Children.Add(new TextBlock { Text = string.Join("\n", existing.Select(c => $"{c.Author}: {c.Text}")), TextWrapping = TextWrapping.Wrap, MaxHeight = 120, FontSize = 12.5, Margin = new Thickness(0, 4, 0, 0), Foreground = Br("FgBrush") });
+            n++; var ci = c; var panel = new StackPanel();
+            panel.Children.Add(new TextBlock { Text = (c.IsReply ? "Risposta di " : "") + c.Author + (CommentDate(c.Created) is { Length: > 0 } dt ? " · " + dt : ""), FontSize = 11.5, Foreground = Br("MutedBrush") });
+            panel.Children.Add(new TextBlock { Text = c.Text, TextWrapping = TextWrapping.Wrap, FontSize = 13, Foreground = Br("FgBrush"), Margin = new Thickness(0, 3, 0, 0) });
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+            var edit = new Button { Content = "Modifica", Padding = new Thickness(10, 2, 10, 2) }; AutomationProperties.SetName(edit, "Modifica commento " + n);
+            var del = new Button { Content = "Elimina", Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(6, 0, 0, 0) }; AutomationProperties.SetName(del, "Elimina commento " + n);
+            edit.Click += (_, _) => EditComment(ci); del.Click += (_, _) => DeleteComment(ci);
+            row.Children.Add(edit); row.Children.Add(del); panel.Children.Add(row);
+            CommentList.Children.Add(new Border { Child = panel, Padding = new Thickness(8), Margin = new Thickness(c.IsReply ? 22 : 0, 0, 0, 6), BorderBrush = Br("LineBrush"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6) });
         }
+    }
+
+    static string CommentDate(string iso) => System.DateTime.TryParse(iso, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var d) ? d.ToString("g", System.Globalization.CultureInfo.CurrentCulture) : iso;
+
+    void EditComment(CommentInfo c)
+    {
+        CommitEdit();
+        var sp = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        var tb = new TextBox { Text = c.Text, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 70, MaxLength = 10000, FontSize = 13, Padding = new Thickness(6, 4, 6, 4) }; AutomationProperties.SetName(tb, "Testo del commento");
+        var err = new TextBlock { Foreground = Br("PowersBrush"), FontSize = 12, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 6, 0, 0) };
+        sp.Children.Add(tb); sp.Children.Add(err);
+        var d = new ThemedDialog(this, "Modifica commento", "Autore e data originali restano invariati.", DialogKind.Question, sp, true);
+        d.AddButton("Annulla", false, true);
+        d.AddButton("Salva", true, false, () => { if (tb.Text.Trim().Length > 0) return true; err.Text = "Scrivi il testo del commento."; err.Visibility = Visibility.Visible; return false; });
+        d.Loaded += (_, _) => { tb.Focus(); tb.SelectAll(); };
+        d.ShowDialog();
+        if (d.Result != 1) return;
+        var text = tb.Text;
+        if (Try(() => _doc!.EditComment(_cur, c.Id, text), "Commento non modificato")) { UpdateTitle(); Status.Text = "Commento modificato."; }
+        RefreshComments();
+    }
+
+    void DeleteComment(CommentInfo c)
+    {
+        CommitEdit();
+        if (c.Replies > 0 && !ThemedDialog.Confirm(this, "Elimina commento", $"Il commento ha {c.Replies} {(c.Replies == 1 ? "risposta, che verrà eliminata" : "risposte, che verranno eliminate")} insieme a lui. Continuare?", "Elimina")) return;
+        if (Try(() => _doc!.DeleteComment(_cur, c.Id), "Commento non eliminato")) { UpdateTitle(); Status.Text = "Commento eliminato."; }
+        RefreshComments();
+    }
+
+    void OnNewComment()
+    {
+        if (_doc == null) return;
+        CommitEdit();
+        var sp = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         sp.Children.Add(Caption("Nuovo commento"));
         var tb = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 70, MaxLength = 10000, FontSize = 13, Padding = new Thickness(6, 4, 6, 4), Margin = new Thickness(0, 4, 0, 0) }; AutomationProperties.SetName(tb, "Testo del commento");
         sp.Children.Add(tb);
@@ -40,6 +98,7 @@ public partial class MainWindow
         if (d.Result != 1) return;
         var text = tb.Text;
         if (Try(() => _doc.AddComment(_cur, text), "Commento non aggiunto")) { UpdateTitle(); Status.Text = $"Commento aggiunto ({_doc.GetComments(_cur).Count} nella diapositiva)."; }
+        RefreshComments();
     }
 
     // ---------- intestazione e piè di pagina ----------

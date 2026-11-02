@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -198,6 +198,10 @@ public sealed class ComEditFixture
         });
         Edit("title-slide.pptx", "comment", d => { d.AddComment(0, "Primo"); d.AddComment(0, "Secondo\nriga"); });
         Edit("comments.pptx", "commentold", d => d.AddComment(0, "Aggiunto dal clone"));
+        Edit("title-slide.pptx", "cmedit", d => { d.AddComment(0, "Uno"); d.AddComment(0, "Due"); d.AddComment(0, "Tre"); var c = d.GetComments(0); d.EditComment(0, c[1].Id, "Due modificato"); d.DeleteComment(0, c[0].Id); });
+        Edit("comments.pptx", "cmcorpus", d => { var c = d.GetComments(0)[0]; d.EditComment(0, c.Id, "Modificato dal clone"); d.AddComment(0, "Aggiunto"); });
+        Edit("comments.pptx", "cmempty", d => d.DeleteComment(0, d.GetComments(0)[0].Id));
+        Edit("comments.pptx", "cmdup", d => { d.DuplicateSlide(0); d.AddComment(1, "Sulla copia"); });
         Edit("mixed-realistic-1.pptx", "hf", d => d.ApplyHeaderFooter(new HeaderFooter(true, true, false, "02/11/2026", true, "Piè dal clone")));
         Edit("mixed-realistic-1.pptx", "showset", d => d.SetShowSettings(new ShowSettings("kiosk", true, false, false, false, 1, 2)));
         Edit("title-slide.pptx", "media", d =>
@@ -208,7 +212,7 @@ public sealed class ComEditFixture
         Edit("transitions.pptx", "timing", d => { d.SetAdvanceTime(0, 2500); d.SetAdvanceTime(1, 4000); d.SetTransition(1, "fade", null, "fast"); });
         Edit("mixed-realistic-1.pptx", "cshow", d => { d.SetCustomShow("Breve", new[] { 2, 0 }); d.SetCustomShow("Tutto", new[] { 0, 1, 2 }); });
         using (var d = PptxDocument.New()) { d.SetShapeText(0, FirstText(d, 0), "Da modello"); d.SaveAs(P("new")); }
-        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "hf", "showset", "media", "timing", "cshow" }.Select(P));
+        R = ComRunner.Inspect(new[] { "text", "reorder", "addslide", "delslide", "notes", "transition", "objects", "duplicate", "unhide", "editnotes", "cell", "new", "dupchart", "dupchart2", "pastepic", "pastechart", "bulletnum", "bulletdot", "transall", "hlink", "replace", "copyfmt", "comment", "commentold", "cmedit", "cmcorpus", "cmempty", "cmdup", "hf", "showset", "media", "timing", "cshow" }.Select(P));
     }
 }
 
@@ -297,6 +301,16 @@ public class OfficeEditTests : IClassFixture<ComEditFixture>
         Assert.Contains("TESTO NUOVO", Txt(Get("replace"), 0)); Assert.Contains("€", Txt(Get("replace"), 0));
     }
     [Fact] public void CopyFormat_ReadByOffice_KeepsTextOfTarget() => Assert.Contains("destinazione", Txt(Get("copyfmt"), 0));
+    static List<(string Author, string Text)> CommentList(JsonElement r, int slide) => ComRunner.Slide(r, slide).GetProperty("commentList").EnumerateArray().Select(c => (c.GetProperty("author").GetString()!, c.GetProperty("text").GetString()!)).ToList();
+    [Fact] public void Comments_EditedAndDeletedByClone_ReadByOffice()
+    {
+        Assert.Equal(new[] { "Due modificato", "Tre" }, CommentList(Get("cmedit"), 0).Select(c => c.Text).Order());   // Office ordina per data: a pari millisecondo l'ordine non è fisso                // app: modifica + elimina
+        Assert.All(CommentList(Get("cmedit"), 0), c => Assert.Equal("Autore", c.Author));
+        Assert.Equal(new[] { ("Autore", "Aggiunto"), ("Corpus", "Modificato dal clone") }, CommentList(Get("cmcorpus"), 0).Order());   // commento creato da PowerPoint: modificato, autore intatto
+        Assert.Equal(0, ComRunner.Slide(Get("cmempty"), 0).GetProperty("comments").GetInt32());                            // ultimo eliminato: file apribile, nessun commento
+        var d = Get("cmdup"); Assert.Equal(2, ComRunner.Content(d).GetProperty("slideCount").GetInt32());                   // duplica: l'originale tiene il commento, la copia solo il nuovo
+        Assert.Equal(new[] { "Commento di prova" }, CommentList(d, 0).Select(c => c.Text)); Assert.Equal(new[] { "Sulla copia" }, CommentList(d, 1).Select(c => c.Text));
+    }
     [Fact] public void Comments_ReadByOffice_NewAndAddedToExisting()
     {
         Assert.Equal(2, ComRunner.Slide(Get("comment"), 0).GetProperty("comments").GetInt32());
