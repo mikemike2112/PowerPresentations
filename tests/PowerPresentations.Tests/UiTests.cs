@@ -14,9 +14,20 @@ public sealed class UiLockFixture : IDisposable
         var deadline = DateTime.UtcNow.AddMinutes(45);
         while (true)
         {
-            try { if (!Directory.Exists(Lock)) { Directory.CreateDirectory(Lock); _own = true; return; } }
-            catch (IOException) { }
-            try { if (Directory.Exists(Lock) && DateTime.UtcNow - Directory.GetCreationTimeUtc(Lock) > TimeSpan.FromMinutes(20)) Directory.Delete(Lock); } catch (IOException) { }
+            // controllo+creazione atomici fra processi (anche altre app della suite): Mutex di sistema tenuto solo qui
+            using (var m = new Mutex(false, @"Global\PowerSuiteUiLock"))
+            {
+                bool got; try { got = m.WaitOne(TimeSpan.FromSeconds(30)); } catch (AbandonedMutexException) { got = true; }
+                if (got)
+                {
+                    try
+                    {
+                        try { if (Directory.Exists(Lock) && DateTime.UtcNow - Directory.GetCreationTimeUtc(Lock) > TimeSpan.FromMinutes(20)) Directory.Delete(Lock); } catch (IOException) { }   // blocco abbandonato
+                        try { if (!Directory.Exists(Lock)) { Directory.CreateDirectory(Lock); _own = true; return; } } catch (IOException) { }
+                    }
+                    finally { m.ReleaseMutex(); }
+                }
+            }
             if (DateTime.UtcNow > deadline) throw new TimeoutException("Blocco UI non ottenuto: un'altra app sta usando mouse e tastiera.");
             Thread.Sleep(5000);
         }
@@ -132,5 +143,38 @@ public class UiTests : IClassFixture<UiLockFixture>
     {
         Run("screenshot.ps1", $"-File \"{Env.CorpusPath("layouts-all.pptx")}\" -Out \"{Path.Combine(Env.Work, "ui-sorter.png")}\" -Mode sorter");
         Assert.True(new FileInfo(Path.Combine(Env.Work, "ui-sorter.png")).Length > 10000);
+    }
+
+    [Fact]
+    public void RealInput_Commands_Clipboard_FindReplace_Bullets_Link_Grid_ApplyAll()
+    {
+        var work = Directory.CreateDirectory(Path.Combine(Env.Work, "ui-cmd")).FullName;
+        string find, repl = "Progetto"; int n;
+        using (var d = Core.PptxDocument.Open(Env.CorpusPath("mixed-realistic-1.pptx")))
+        {
+            n = d.ShapeIds(0).Count; Assert.True(n >= 2);
+            find = new Core.Rendering.SlideRenderer(d).Render(0).Items.OfType<Core.Rendering.TextItem>().First().Text.Split(' ')[0];
+        }
+        var json = Run("ui-commands.ps1", $"-Find \"{find}\" -Repl \"{repl}\" -Work \"{work}\"", 240000).Trim().Split((char)10).Last().Trim();
+        using var j = JsonDocument.Parse(json); var r = j.RootElement;
+        Assert.False(r.TryGetProperty("error", out var err), json + " :: " + err);
+        Assert.Contains("forme selezionate", r.GetProperty("afterSelectAll").GetString());                       // Ctrl+A reale
+        int Shapes(string f) { using var d = Core.PptxDocument.Open(Path.Combine(work, f)); return d.ShapeIds(0).Count; }
+        Assert.Equal(2 * n, Shapes("pasted.pptx"));                                                              // Ctrl+C, Ctrl+V
+        Assert.Equal(n, Shapes("undone.pptx"));                                                                  // Ctrl+Z: un solo annulla
+        Assert.Equal(0, Shapes("cut.pptx")); Assert.Equal(n, Shapes("cutpasted.pptx"));                          // Ctrl+X, Ctrl+V
+        using (var d = Core.PptxDocument.Open(Path.Combine(work, "replaced.pptx")))
+        {
+            var all = string.Join("|", Enumerable.Range(0, d.Slides.Count).SelectMany(i => d.ShapeIds(i).Select(id => d.GetShapeText(i, id))));
+            Assert.DoesNotContain(find, all); Assert.Contains(repl, all);                                        // Trova e sostituisci
+        }
+        using (var d = Core.PptxDocument.Open(Path.Combine(work, "shape.pptx")))
+        {
+            int first = d.ShapeIds(0)[0];
+            Assert.Equal("bullet", d.GetBullet(0, first)); Assert.Equal("https://example.org/ui", d.GetHyperlink(0, first));   // Seleziona, Elenco puntato, Collegamento
+        }
+        foreach (var k in new[] { "Griglia", "Righello" }) { Assert.True(r.GetProperty(k + "-enabled").GetBoolean()); Assert.True(r.GetProperty(k + "-on").GetBoolean()); }
+        using (var d = Core.PptxDocument.Open(Path.Combine(work, "trans.pptx"))) for (int i = 0; i < d.Slides.Count; i++) Assert.Equal("fade", d.GetTransition(i).Kind);   // Applica a tutte
+        Assert.True(r.GetProperty("videoEnabled").GetBoolean());
     }
 }
