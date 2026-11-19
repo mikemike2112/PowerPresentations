@@ -32,7 +32,7 @@ public class RendererTests
         }
     }
 
-    [Fact]
+    [Fact, Trait("Category", "OfficeFonts")]   // richiede il font Aptos installato: assente sul runner GitHub
     public void TitleSlide_Title_InheritsSizeCenteringAndFontFromMasterAndLayout()
     {
         var dl = Render("title-slide.pptx");
